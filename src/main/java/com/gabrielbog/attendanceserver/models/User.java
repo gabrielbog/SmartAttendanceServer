@@ -17,6 +17,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
 
+    @Column(columnDefinition = "integer default 0")
+    private int isAdmin;
+
     @Column
     private String cnp;
 

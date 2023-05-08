@@ -1,5 +1,6 @@
 package com.gabrielbog.attendanceserver.controllers;
 
+import com.gabrielbog.attendanceserver.models.LogInResponse;
 import com.gabrielbog.attendanceserver.models.User;
 import com.gabrielbog.attendanceserver.repositories.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,12 +46,12 @@ public class ApiController {
     }
 
     @GetMapping("/getUserByCnpAndPassword/{cnp}&{password}")
-    public int getUserByCnpAndPassword(@PathVariable String cnp, @PathVariable String password) {
+    public LogInResponse getUserByCnpAndPassword(@PathVariable String cnp, @PathVariable String password) {
         Optional<User> userList = userRepo.findByCnpAndPassword(cnp, password);
         if (userList.isPresent()) {
-            return 1;
+            return new LogInResponse(1, userList.get().getId(), userList.get().getIsAdmin(), userList.get().getFirstName(), userList.get().getLastName());
         } else {
-            return 0;
+            return new LogInResponse(0, 0, 0, "", "");
         }
     }
 
