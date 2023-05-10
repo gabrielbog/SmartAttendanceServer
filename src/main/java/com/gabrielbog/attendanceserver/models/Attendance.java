@@ -8,32 +8,31 @@ import lombok.ToString;
 
 import jakarta.persistence.*;
 
+import java.sql.Time;
+import java.sql.Date;
+
 @Entity
-@Table(name="Users")
+@Table(name="Attendance")
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 @ToString
-public class User {
+public class Attendance {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
 
-    @Column(columnDefinition = "integer default 0")
-    private int isAdmin;
-
-    @Column(unique = true)
-    private String cnp;
+    @Column
+    private int studentId;
 
     @Column
-    private String password; //encrypted
+    private int scheduleId;
 
     @Column
-    private String firstName;
+    private Date scanDate;
 
     @Column
-    private String lastName;
-
+    private Time scanTime;
 }

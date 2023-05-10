@@ -9,31 +9,24 @@ import lombok.ToString;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name="Users")
+@Table(name="Students")
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 @ToString
-public class User {
+public class Subject {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
 
-    @Column(columnDefinition = "integer default 0")
-    private int isAdmin;
-
-    @Column(unique = true)
-    private String cnp;
+    @Column
+    private String name;
 
     @Column
-    private String password; //encrypted
+    private String spec; //specialization
 
     @Column
-    private String firstName;
-
-    @Column
-    private String lastName;
-
+    private int grade; //year
 }
