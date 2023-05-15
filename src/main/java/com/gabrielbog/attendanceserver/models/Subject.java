@@ -9,7 +9,7 @@ import lombok.ToString;
 import jakarta.persistence.*;
 
 @Entity
-@Table(name="Students")
+@Table(name="Subjects")
 @NoArgsConstructor
 @AllArgsConstructor
 @Getter
@@ -25,7 +25,7 @@ public class Subject {
     private String name;
 
     @Column
-    private String spec; //specialization
+    private String spec; //specialization - change this to an int, make another table
 
     @Column
     private int grade; //year
