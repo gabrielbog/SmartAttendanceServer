@@ -7,8 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
+import java.sql.Date;
+import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -19,6 +23,7 @@ public class ApiController {
 
     //Time Format
     private static final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("dd.MM.yyyy:HH.mm.ss");
+    private static final SimpleDateFormat timeFormat = new SimpleDateFormat("HH.mm.ss");
 
     //Database Access
     @Autowired
@@ -76,20 +81,25 @@ public class ApiController {
     @GetMapping("/getUserByCnpAndPassword/{cnp}&{password}")
     public LogInResponse getUserByCnpAndPassword(@PathVariable String cnp, @PathVariable String password) {
         Optional<User> user = userRepo.findByCnpAndPassword(cnp, password);
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+
         if (user.isPresent()) {
             if(user.get().getIsAdmin() == 0) {
                 //check if student exists
                 Optional<Student> student = studentRepo.findByUserId(user.get().getId());
                 if(student.isPresent()) {
+                    System.out.println("[" + timestamp.toString() + "] Student " + user.get().getCnp() + " logged in"); //debug
                     return new LogInResponse(1, user.get().getId(), user.get().getIsAdmin(), user.get().getFirstName(), user.get().getLastName());
                 }
                 else {
                     //invalid user - might be a good idea to store this in a log on the server
+                    System.out.println("[" + timestamp.toString() + "] !!! STUDENT " + user.get().getCnp() + " HAS NO STUDENT TABLE ENTRY !!!"); //debug
                     return new LogInResponse(0, 0, 0, "", "");
                 }
             }
             else {
                 //return professor response
+                System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getCnp() + " logged in"); //debug
                 return new LogInResponse(1, user.get().getId(), user.get().getIsAdmin(), user.get().getFirstName(), user.get().getLastName());
             }
         }
@@ -225,15 +235,34 @@ public class ApiController {
     }
 
     /*
+        scancode
+    */
+    @GetMapping("/getScancodeByCode/{code}")
+    public Scancode getScancodeByCode(@PathVariable String code) {
+        try {
+            Optional<Scancode> scancode = scancodeRepo.findByCode(code);
+            if(scancode.isPresent()) {
+                return scancode.get();
+            }
+            else {
+                return null;
+            }
+        }
+        catch(Exception ex) {
+            return null;
+        }
+    }
+
+    /*
         attendance
     */
 
     @GetMapping("/generateQrCode/{id}")
-    public QrCodeResponse
-            e(@PathVariable int id) {
+    public QrCodeResponse generateQrCode(@PathVariable int id) {
         //search for professor
         //if professor exists, search for the most appropriate schedule row at the time of the request based on received id
         //if there's any appropriate schedule, generate sha1 hash of id + lastName + time mentioned above and send back
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
         try {
             Optional<User> user = userRepo.findById(id);
@@ -241,17 +270,30 @@ public class ApiController {
                 if(user.get().getIsAdmin() == 1) {
                     //search for appropriate schedule
 
-                    Timestamp timestamp = new Timestamp(System.currentTimeMillis());
                     String qrString = Hashing.sha256()
                             .hashString(String.valueOf(id) + user.get().getFirstName() + dateTimeFormat.format(timestamp).toString(), StandardCharsets.UTF_8)
                             .toString();
 
-                    //store on database
+                    //get these from schedule table later
+                    Time timeStart = Time.valueOf(LocalTime.now());
+                    Scancode scancode = new Scancode(); //it's impossible to append the values inside the constructor without it requiring a value for the id
+                    scancode.setSubjectId(0); //change this to the id from the schedule table
+                    scancode.setCode(qrString);
+                    scancode.setTimeStart(timeStart); //change these values to the time from the schedule table
+                    scancode.setTimeStop(timeStart);
 
-                    System.out.println("Professor " + user.get().getFirstName() + " generated at " + dateTimeFormat.format(timestamp).toString() + " code: " + qrString); //debug
+                    try {
+                        scancodeRepo.save(scancode);
+                    }
+                    catch (Exception ex) {
+                        return new QrCodeResponse(-1, "Error during request."); //error during request
+                    }
+
+                    System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getFirstName() + " code: " + qrString); //debug
                     return new QrCodeResponse(2, qrString);
                 }
                 else {
+                    System.out.println("[" + timestamp.toString() + "] !!! STUDENT " + user.get().getCnp() + " TRIED TO GENERATE QR CODE !!!"); //debug
                     return new QrCodeResponse(1, ""); //request from non-professor
                 }
             }
@@ -260,7 +302,56 @@ public class ApiController {
             }
         }
         catch (Exception ex) {
-            return new QrCodeResponse(-1, ""); //error during request
+            return new QrCodeResponse(-1, "Error during request."); //error during request
+        }
+    }
+
+    @GetMapping("/scanQrCode/{id}&{code}")
+    public QrCodeResponse scanQrCode(@PathVariable int id, @PathVariable String code) {
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        Date date = Date.valueOf(LocalDate.now());
+        Time time = Time.valueOf(LocalTime.now());
+
+        System.out.println(id + " " + code); //debug
+
+        try {
+
+            Optional<Student> student = studentRepo.findByUserId(id);
+            if (student.isPresent()) {
+                try {
+
+                    Optional<Scancode> scancode = scancodeRepo.findByCode(code);
+                    if(scancode.isPresent()) {
+
+                        Attendance attendance = new Attendance();
+                        attendance.setStudentId(id);
+                        attendance.setScheduleId(0);
+                        attendance.setScanDate(date);
+                        attendance.setScanTime(time);
+                        try {
+                            attendanceRepo.save(attendance);
+                        }
+                        catch (Exception ex) {
+                            return new QrCodeResponse(-1, "Error during request."); //error during request
+                        }
+
+                        System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
+                        return new QrCodeResponse(2, "You're now attending!"); //error during request
+                    }
+                    else {
+                        return new QrCodeResponse(1, "Invalid QR Code."); //error during request
+                    }
+                }
+                catch (Exception ex) {
+                    return new QrCodeResponse(-1, "Error during request."); //error during request
+                }
+            }
+            else {
+                return new QrCodeResponse(0, "Invalid student."); //error during request
+            }
+        }
+        catch (Exception ex) {
+            return new QrCodeResponse(-1, "Error during request."); //error during request
         }
     }
 }
