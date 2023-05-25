@@ -30,9 +30,6 @@ public class Schedule {
     private int professorId;
 
     @Column
-    private String type; //course, laboratory, project
-
-    @Column
     private Time timeStart;
 
     @Column
@@ -42,10 +39,10 @@ public class Schedule {
     private int weekday; //0 - Monday, 6 - Sunday
 
     @Column
-    private int studentGrade; //student year
+    private int studentGrade; //student year - kindof useless
 
     @Column
-    private int studentGrup; //student group
+    private int studentGrup; //student group; 0 - all groups
 
     @Column
     private String room;

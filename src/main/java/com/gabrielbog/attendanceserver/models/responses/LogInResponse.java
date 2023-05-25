@@ -1,4 +1,4 @@
-package com.gabrielbog.attendanceserver.models;
+package com.gabrielbog.attendanceserver.models.responses;
 
 import lombok.*;
 

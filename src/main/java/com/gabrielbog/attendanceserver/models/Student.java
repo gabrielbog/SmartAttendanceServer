@@ -25,7 +25,7 @@ public class Student {
     private int userId;
 
     @Column
-    private String spec; //specialization - change this to an int, make another table
+    private int spec;
 
     @Column
     private int grade; //year

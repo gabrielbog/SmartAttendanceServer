@@ -1,6 +1,9 @@
 package com.gabrielbog.attendanceserver.controllers;
 
 import com.gabrielbog.attendanceserver.models.*;
+import com.gabrielbog.attendanceserver.models.responses.LogInResponse;
+import com.gabrielbog.attendanceserver.models.responses.QrCodeResponse;
+import com.gabrielbog.attendanceserver.models.responses.SubjectListResponse;
 import com.gabrielbog.attendanceserver.repositories.*;
 import com.google.common.hash.Hashing;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,9 +16,7 @@ import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api")
@@ -23,7 +24,6 @@ public class ApiController {
 
     //Time Format
     private static final SimpleDateFormat dateTimeFormat = new SimpleDateFormat("dd.MM.yyyy:HH.mm.ss");
-    private static final SimpleDateFormat timeFormat = new SimpleDateFormat("HH.mm.ss");
 
     //Database Access
     @Autowired
@@ -31,6 +31,9 @@ public class ApiController {
 
     @Autowired
     StudentRepository studentRepo;
+
+    @Autowired
+    SpecializationRepository specialzationRepo;
 
     @Autowired
     SubjectRepository subjectRepo;
@@ -80,6 +83,7 @@ public class ApiController {
 
     @GetMapping("/getUserByCnpAndPassword/{cnp}&{password}")
     public LogInResponse getUserByCnpAndPassword(@PathVariable String cnp, @PathVariable String password) {
+        //might be a good idea to find only by cnp, then compare passwords by code
         Optional<User> user = userRepo.findByCnpAndPassword(cnp, password);
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
 
@@ -203,6 +207,21 @@ public class ApiController {
     }
 
     /*
+        specializations
+    */
+
+    @PostMapping("/addSpecialization")
+    public int addSpecialization(@RequestBody Specialization specialization) {
+        try {
+            specialzationRepo.save(specialization);
+            return 1;
+        }
+        catch (Exception ex) {
+            return 0;
+        }
+    }
+
+    /*
         subjects
     */
 
@@ -267,18 +286,22 @@ public class ApiController {
         try {
             Optional<User> user = userRepo.findById(id);
             if (user.isPresent()) {
+
                 if(user.get().getIsAdmin() == 1) {
                     //search for appropriate schedule
+                    //might be a good idea to check for an already existing code in case professor accidentally exits the app
 
                     String qrString = Hashing.sha256()
                             .hashString(String.valueOf(id) + user.get().getFirstName() + dateTimeFormat.format(timestamp).toString(), StandardCharsets.UTF_8)
                             .toString();
 
+                    Date date = Date.valueOf(LocalDate.now());
                     //get these from schedule table later
                     Time timeStart = Time.valueOf(LocalTime.now());
                     Scancode scancode = new Scancode(); //it's impossible to append the values inside the constructor without it requiring a value for the id
                     scancode.setSubjectId(0); //change this to the id from the schedule table
                     scancode.setCode(qrString);
+                    scancode.setCreationDate(date);
                     scancode.setTimeStart(timeStart); //change these values to the time from the schedule table
                     scancode.setTimeStop(timeStart);
 
@@ -315,13 +338,14 @@ public class ApiController {
         System.out.println(id + " " + code); //debug
 
         try {
-
             Optional<Student> student = studentRepo.findByUserId(id);
             if (student.isPresent()) {
-                try {
 
+                try {
                     Optional<Scancode> scancode = scancodeRepo.findByCode(code);
                     if(scancode.isPresent()) {
+
+                        //check if date and time at scan are valid
 
                         Attendance attendance = new Attendance();
                         attendance.setStudentId(id);
@@ -332,26 +356,137 @@ public class ApiController {
                             attendanceRepo.save(attendance);
                         }
                         catch (Exception ex) {
-                            return new QrCodeResponse(-1, "Error during request."); //error during request
+                            return new QrCodeResponse(-1, "Error during request.");
                         }
 
                         System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
-                        return new QrCodeResponse(2, "You're now attending!"); //error during request
+                        return new QrCodeResponse(2, "You're now attending!");
                     }
                     else {
-                        return new QrCodeResponse(1, "Invalid QR Code."); //error during request
+                        return new QrCodeResponse(1, "Invalid QR Code.");
                     }
                 }
                 catch (Exception ex) {
-                    return new QrCodeResponse(-1, "Error during request."); //error during request
+                    return new QrCodeResponse(-1, "Error during request.");
                 }
             }
             else {
-                return new QrCodeResponse(0, "Invalid student."); //error during request
+                return new QrCodeResponse(0, "Invalid student.");
             }
         }
         catch (Exception ex) {
-            return new QrCodeResponse(-1, "Error during request."); //error during request
+            return new QrCodeResponse(-1, "Error during request.");
         }
     }
+
+    /*
+        @GetMapping("/refreshQrCode/{id}&{code}")
+        public QrCodeResponse refreshQrCode(@PathVariable int id, @PathVariable String code) {
+            //check if date and time are still valid, if not, return error code and remove qr code in-app
+            //else search for code, if exists, make new hash like at generation, but change the table entry instead
+        }
+    */
+
+    /*
+        schedules
+    */
+
+    @PostMapping("/addSchedule")
+    public int addSchedule(@RequestBody Schedule schedule) {
+        try {
+            scheduleRepo.save(schedule);
+            return 1;
+        }
+        catch (Exception ex) {
+            return 0;
+        }
+    }
+
+    @GetMapping("/getSubjectList/{id}")
+    public SubjectListResponse getSubjectList(@PathVariable int id) {
+
+        SubjectListResponse response = new SubjectListResponse();
+        List<Subject> subjectList = new ArrayList<>();
+
+        try {
+            Optional<User> user = userRepo.findById(id);
+            if (user.isPresent()) {
+
+                if(user.get().getIsAdmin() == 1) {
+
+                    //try catch
+                    List<Schedule> scheduleList = new ArrayList<>(); //this will add subjects only once
+                    scheduleRepo.findByProfessorId(user.get().getId()).forEach(scheduleList::add);
+                    int duplicateFound = 0;
+
+                    for(Schedule scheduleElement : scheduleList) {
+
+                        //try catch
+                        Optional<Subject> subject = subjectRepo.findById(scheduleElement.getSubjectId());
+                        if(subject.isPresent()) {
+                            duplicateFound = 0;
+                            for (Subject subjectElement : subjectList) {
+                                if(subjectElement.getId() == subject.get().getId()) {
+                                    duplicateFound = 1;
+                                    break;
+                                }
+                            }
+                            if(duplicateFound == 0) {
+                                subjectList.add(subject.get());
+                            }
+                        }
+                    }
+
+                    //sort it alphabetically
+                    response.setCode(1);
+                    response.setSubjectList(subjectList);
+                    return response;
+                }
+                else {
+
+                    try {
+                        Optional<Student> student = studentRepo.findByUserId(user.get().getId());
+                        if(student.isPresent()) {
+
+                            //try catch
+                            subjectRepo.findBySpecAndGrade(student.get().getSpec(), student.get().getGrade()).forEach(subjectList::add); //build list with student year and grade subjects
+                            //sort it alphabetically
+                            response.setCode(1);
+                            response.setSubjectList(subjectList);
+                            return response;
+                        }
+                        else {
+                            response.setCode(0);
+                            return response;
+                        }
+                    }
+                    catch (Exception ex) {
+                        response.setCode(-1);
+                        return response;
+                    }
+                }
+            }
+            else {
+                response.setCode(0);
+                return response;
+            }
+        }
+        catch (Exception ex) {
+            response.setCode(-1);
+            return response;
+        }
+    }
+
+    /*
+    @GetMapping("/getScheduleCalendar/{subjectId}&{professorId}")
+    public SubjectListResponse getScheduleCalendar(@PathVariable int subjectId, @PathVariable int professorId) {
+
+    }
+    */
+
+    //get days when schedule is in progress - might be possible to do this on device based on information about schedule
+
+    //get attendance list for specific schedule
+    //student - show student specific attendance list; on server combine schedule days list with this list for overall attendance list
+    //professor - show all students attendance based on selected day; on server create list with all schedule specific students then change values for attending ones
 }

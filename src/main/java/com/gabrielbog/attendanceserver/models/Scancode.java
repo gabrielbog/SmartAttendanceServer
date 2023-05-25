@@ -8,6 +8,7 @@ import lombok.ToString;
 
 import jakarta.persistence.*;
 
+import java.sql.Date;
 import java.sql.Time;
 
 @Entity
@@ -28,6 +29,9 @@ public class Scancode {
 
     @Column
     private String code; //sha1-hashed code of schedule, professor and creation timestamp
+
+    @Column
+    private Date creationDate; //the code will be valid only for a day
 
     @Column
     private Time timeStart; //so that there won't be another query on the schedule table
