@@ -8,7 +8,6 @@ public class AttendanceserverApplication {
 
 	public static void main(String[] args) {
 
-		AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance(); //read calendar for getting attendance properly
 		SpringApplication.run(AttendanceserverApplication.class, args);
 	}
 }

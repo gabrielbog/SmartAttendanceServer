@@ -25,7 +25,7 @@ public class Attendance {
     private int id;
 
     @Column
-    private int studentId;
+    private int studentId; //rename to userId
 
     @Column
     private int scheduleId;

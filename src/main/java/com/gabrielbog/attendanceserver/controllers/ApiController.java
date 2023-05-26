@@ -1,9 +1,8 @@
 package com.gabrielbog.attendanceserver.controllers;
 
+import com.gabrielbog.attendanceserver.AttendanceCalendar;
 import com.gabrielbog.attendanceserver.models.*;
-import com.gabrielbog.attendanceserver.models.responses.LogInResponse;
-import com.gabrielbog.attendanceserver.models.responses.QrCodeResponse;
-import com.gabrielbog.attendanceserver.models.responses.SubjectListResponse;
+import com.gabrielbog.attendanceserver.models.responses.*;
 import com.gabrielbog.attendanceserver.repositories.*;
 import com.google.common.hash.Hashing;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,8 +13,10 @@ import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 
 @RestController
@@ -415,7 +416,7 @@ public class ApiController {
                 if(user.get().getIsAdmin() == 1) {
 
                     //try catch
-                    List<Schedule> scheduleList = new ArrayList<>(); //this will add subjects only once
+                    List<Schedule> scheduleList = new ArrayList<>();
                     scheduleRepo.findByProfessorId(user.get().getId()).forEach(scheduleList::add);
                     int duplicateFound = 0;
 
@@ -477,16 +478,117 @@ public class ApiController {
         }
     }
 
-    /*
-    @GetMapping("/getScheduleCalendar/{subjectId}&{professorId}")
-    public SubjectListResponse getScheduleCalendar(@PathVariable int subjectId, @PathVariable int professorId) {
+    @GetMapping("/getScheduleCalendar/{professorId}&{subjectId}")
+    public ScheduleCalendarResponse getScheduleCalendar(@PathVariable int professorId, @PathVariable int subjectId) {
 
+        ScheduleCalendarResponse response = new ScheduleCalendarResponse();
+        List<ScheduleCalendar> scheduleCalendar = new ArrayList<>();
+
+        try {
+            AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance(); //reads the calendar for the year and semester periods
+            LocalDate startLocalDate = attendanceCalendar.getYearStart().toLocalDate();
+            LocalDate endLocalDate = attendanceCalendar.getYearStop().toLocalDate();
+            LocalDate nextDate = startLocalDate;
+
+            List<Schedule> scheduleList = new ArrayList<>();
+            scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId).forEach(scheduleList::add);
+
+            while (nextDate.isBefore(endLocalDate)) { //iterates through all days
+                for(Schedule schedule : scheduleList) {
+                    if (nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
+                        ScheduleCalendar scheduleCalendarElement = new ScheduleCalendar(schedule.getId(), Date.valueOf(nextDate), schedule.getTimeStart(), schedule.getTimeStop(), schedule.getStudentGrup());
+                        scheduleCalendar.add(scheduleCalendarElement); //adds the date to the list
+                    }
+                }
+                nextDate = nextDate.plus(1, ChronoUnit.DAYS);
+            }
+
+            response.setCode(1);
+            response.setScheduleCalendarList(scheduleCalendar);
+            return response;
+        }
+        catch (Exception ex) {
+            response.setCode(-1);
+            return response;
+        }
     }
-    */
 
-    //get days when schedule is in progress - might be possible to do this on device based on information about schedule
+    @GetMapping("/getAttendingStudentsList/{scanDate}&{scheduleId}")
+    public StudentAttendanceResponse getAttendingStudentsList(@PathVariable Date scanDate, @PathVariable int scheduleId) {
 
-    //get attendance list for specific schedule
-    //student - show student specific attendance list; on server combine schedule days list with this list for overall attendance list
-    //professor - show all students attendance based on selected day; on server create list with all schedule specific students then change values for attending ones
+        StudentAttendanceResponse studentAttendanceResponse = new StudentAttendanceResponse();
+        List<StudentAttendance> studentAttendanceList = new ArrayList<>();
+
+        try {
+            Optional<Schedule> schedule = scheduleRepo.findById(scheduleId);
+            if(schedule.isPresent()) {
+                try {
+                    Optional<Subject> subject = subjectRepo.findById(schedule.get().getSubjectId());
+                    if(subject.isPresent()) {
+                        try {
+                            List<Student> studentList = new ArrayList<>();
+                            studentRepo.findByGradeAndSpec(subject.get().getGrade(), subject.get().getSpec()).forEach(studentList::add);
+                            try {
+                                List<Attendance> attendanceList = new ArrayList<>();
+                                attendanceRepo.findByScanDateAndScheduleId(scanDate, scheduleId).forEach(attendanceList::add);
+                                for(Student student : studentList) {
+                                    try {
+                                        Optional<User> user = userRepo.findById(student.getUserId());
+                                        if(user.isPresent()) {
+
+                                            int studentFound = 0;
+                                            if(schedule.get().getStudentGrup() == 0 || schedule.get().getStudentGrup() == student.getGrup()) { //only take in consideration specific groups or all groups {
+                                                for(Attendance attendance : attendanceList) {
+                                                    if(attendance.getScanDate().equals(scanDate) && attendance.getStudentId() == student.getUserId()) {
+                                                        studentAttendanceList.add(new StudentAttendance(user.get().getFirstName(), user.get().getLastName(), scanDate, "present"));
+                                                        studentFound = 1;
+                                                        break;
+                                                    }
+                                                }
+                                                if(studentFound == 0) {
+                                                    studentAttendanceList.add(new StudentAttendance(user.get().getFirstName(), user.get().getLastName(), scanDate, "absent"));
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (Exception ex) {
+                                        return null;
+                                    }
+                                }
+                                studentAttendanceResponse.setCode(1);
+                                studentAttendanceResponse.setStudentAttendanceList(studentAttendanceList);
+                                return studentAttendanceResponse;
+                            }
+                            catch (Exception ex) {
+                                studentAttendanceResponse.setCode(-1);
+                                return studentAttendanceResponse;
+                            }
+                        }
+                        catch (Exception ex) {
+                            studentAttendanceResponse.setCode(-1);
+                            return studentAttendanceResponse;
+                        }
+                    }
+                    else {
+                        //impossible condition
+                        studentAttendanceResponse.setCode(0);
+                        return studentAttendanceResponse;
+                    }
+                }
+                catch (Exception ex) {
+                    studentAttendanceResponse.setCode(-1);
+                    return studentAttendanceResponse;
+                }
+            }
+            else {
+                //impossible condition
+                studentAttendanceResponse.setCode(0);
+                return studentAttendanceResponse;
+            }
+        }
+        catch (Exception ex) {
+            studentAttendanceResponse.setCode(-1);
+            return studentAttendanceResponse;
+        }
+    }
 }

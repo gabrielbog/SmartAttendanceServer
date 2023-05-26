@@ -28,16 +28,16 @@ public class AttendanceCalendar {
             JsonObject json = new Gson().fromJson(br, JsonObject.class);
 
             java.util.Date date = dateFormat.parse(json.get("yearStart").getAsString());
-            java.sql.Date yearStart = new java.sql.Date(date.getTime());
+            this.yearStart = new java.sql.Date(date.getTime());
 
             date = dateFormat.parse(json.get("semesterIstop").getAsString());
-            java.sql.Date semesterIstop = new java.sql.Date(date.getTime());
+            this.semesterIstop = new java.sql.Date(date.getTime());
 
             date = dateFormat.parse(json.get("semesterIIstart").getAsString());
-            java.sql.Date semesterIIstart = new java.sql.Date(date.getTime());
+            this.semesterIIstart = new java.sql.Date(date.getTime());
 
             date = dateFormat.parse(json.get("yearStop").getAsString());
-            java.sql.Date yearStop = new java.sql.Date(date.getTime());
+            this.yearStop = new java.sql.Date(date.getTime());
         }
         catch (Exception ex) {
             ex.printStackTrace();

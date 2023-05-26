@@ -36,7 +36,7 @@ public class Schedule {
     private Time timeStop;
 
     @Column
-    private int weekday; //0 - Monday, 6 - Sunday
+    private int weekday; //0 - Sunday, 6 - Saturday
 
     @Column
     private int studentGrade; //student year - kindof useless

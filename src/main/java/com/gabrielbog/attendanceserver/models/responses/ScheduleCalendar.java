@@ -12,10 +12,11 @@ import lombok.*;
 @ToString
 public class ScheduleCalendar {
 
+    private int id; //schedule id
     private Date date;
     private Time timeStart;
     private Time timeStop;
-    private String grup;
+    private int grup;
 
     public int compareTo(ScheduleCalendar other) {
         //compare by date
@@ -37,6 +38,6 @@ public class ScheduleCalendar {
         }
 
         //compare by grup
-        return this.grup.compareTo(other.grup);
+        return Integer.compare(this.grup, other.grup);
     }
 }

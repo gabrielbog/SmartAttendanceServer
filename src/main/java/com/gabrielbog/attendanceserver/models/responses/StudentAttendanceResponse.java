@@ -9,7 +9,7 @@ import java.util.List;
 @Setter
 @Getter
 @ToString
-public class ScheduleCalendarResponse {
+public class StudentAttendanceResponse {
     private int code;
-    private List<ScheduleCalendar> scheduleCalendarList;
+    private List<StudentAttendance> studentAttendanceList;
 }
