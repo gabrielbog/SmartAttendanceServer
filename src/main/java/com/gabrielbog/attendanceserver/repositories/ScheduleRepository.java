@@ -10,4 +10,5 @@ import java.util.List;
 public interface ScheduleRepository extends JpaRepository<Schedule, Integer> {
     List<Schedule> findByProfessorId(int professorId);
     List<Schedule> findByProfessorIdAndSubjectId(int professorId, int subjectId);
+    List<Schedule> findBySubjectId(int subjectId);
 }

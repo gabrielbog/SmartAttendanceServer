@@ -415,33 +415,44 @@ public class ApiController {
 
                 if(user.get().getIsAdmin() == 1) {
 
-                    //try catch
-                    List<Schedule> scheduleList = new ArrayList<>();
-                    scheduleRepo.findByProfessorId(user.get().getId()).forEach(scheduleList::add);
-                    int duplicateFound = 0;
-
-                    for(Schedule scheduleElement : scheduleList) {
-
+                    try {
                         //try catch
-                        Optional<Subject> subject = subjectRepo.findById(scheduleElement.getSubjectId());
-                        if(subject.isPresent()) {
-                            duplicateFound = 0;
-                            for (Subject subjectElement : subjectList) {
-                                if(subjectElement.getId() == subject.get().getId()) {
-                                    duplicateFound = 1;
-                                    break;
+                        List<Schedule> scheduleList = new ArrayList<>();
+                        scheduleRepo.findByProfessorId(user.get().getId()).forEach(scheduleList::add);
+                        int duplicateFound = 0;
+
+                        for(Schedule scheduleElement : scheduleList) {
+
+                            try {
+                                Optional<Subject> subject = subjectRepo.findById(scheduleElement.getSubjectId());
+                                if(subject.isPresent()) {
+                                    duplicateFound = 0;
+                                    for (Subject subjectElement : subjectList) {
+                                        if(subjectElement.getId() == subject.get().getId()) {
+                                            duplicateFound = 1;
+                                            break;
+                                        }
+                                    }
+                                    if(duplicateFound == 0) {
+                                        subjectList.add(subject.get());
+                                    }
                                 }
                             }
-                            if(duplicateFound == 0) {
-                                subjectList.add(subject.get());
+                            catch (Exception ex) {
+                                response.setCode(-1);
+                                return response;
                             }
                         }
-                    }
 
-                    //sort it alphabetically
-                    response.setCode(1);
-                    response.setSubjectList(subjectList);
-                    return response;
+                        //sort it alphabetically
+                        response.setCode(1);
+                        response.setSubjectList(subjectList);
+                        return response;
+                    }
+                    catch (Exception ex) {
+                        response.setCode(-1);
+                        return response;
+                    }
                 }
                 else {
 
@@ -449,12 +460,17 @@ public class ApiController {
                         Optional<Student> student = studentRepo.findByUserId(user.get().getId());
                         if(student.isPresent()) {
 
-                            //try catch
-                            subjectRepo.findBySpecAndGrade(student.get().getSpec(), student.get().getGrade()).forEach(subjectList::add); //build list with student year and grade subjects
-                            //sort it alphabetically
-                            response.setCode(1);
-                            response.setSubjectList(subjectList);
-                            return response;
+                            try {
+                                subjectRepo.findBySpecAndGrade(student.get().getSpec(), student.get().getGrade()).forEach(subjectList::add); //build list with student year and grade subjects
+                                //sort it alphabetically
+                                response.setCode(1);
+                                response.setSubjectList(subjectList);
+                                return response;
+                            }
+                            catch (Exception ex) {
+                                response.setCode(-1);
+                                return response;
+                            }
                         }
                         else {
                             response.setCode(0);
@@ -485,27 +501,52 @@ public class ApiController {
         List<ScheduleCalendar> scheduleCalendar = new ArrayList<>();
 
         try {
-            AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance(); //reads the calendar for the year and semester periods
-            LocalDate startLocalDate = attendanceCalendar.getYearStart().toLocalDate();
-            LocalDate endLocalDate = attendanceCalendar.getYearStop().toLocalDate();
-            LocalDate nextDate = startLocalDate;
+            Optional<Subject> subject = subjectRepo.findById(subjectId);
+            if(subject.isPresent()) {
+                try {
+                    AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance(); //reads the calendar for the year and semester periods
 
-            List<Schedule> scheduleList = new ArrayList<>();
-            scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId).forEach(scheduleList::add);
-
-            while (nextDate.isBefore(endLocalDate)) { //iterates through all days
-                for(Schedule schedule : scheduleList) {
-                    if (nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
-                        ScheduleCalendar scheduleCalendarElement = new ScheduleCalendar(schedule.getId(), Date.valueOf(nextDate), schedule.getTimeStart(), schedule.getTimeStop(), schedule.getStudentGrup());
-                        scheduleCalendar.add(scheduleCalendarElement); //adds the date to the list
+                    //change start and stop depending on semester and current date
+                    LocalDate startLocalDate = attendanceCalendar.getYearStart().toLocalDate();
+                    LocalDate endLocalDate = attendanceCalendar.getYearStop().toLocalDate();
+                    if(subject.get().getSemester() == 1) { //semester intervals
+                        endLocalDate = attendanceCalendar.getSemesterIstop().toLocalDate();
                     }
-                }
-                nextDate = nextDate.plus(1, ChronoUnit.DAYS);
-            }
+                    else {
+                        startLocalDate = attendanceCalendar.getSemesterIIstart().toLocalDate();
+                    }
+                    LocalDate currentDate = LocalDate.now();
+                    if(endLocalDate.compareTo(currentDate) > 0) { //student checks attendance before semester ends
+                        endLocalDate = currentDate;
+                    }
+                    LocalDate nextDate = startLocalDate;
 
-            response.setCode(1);
-            response.setScheduleCalendarList(scheduleCalendar);
-            return response;
+                    List<Schedule> scheduleList = new ArrayList<>();
+                    scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId).forEach(scheduleList::add);
+
+                    while (nextDate.isBefore(endLocalDate)) { //iterates through all days
+                        for(Schedule schedule : scheduleList) {
+                            if (nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
+                                ScheduleCalendar scheduleCalendarElement = new ScheduleCalendar(schedule.getId(), Date.valueOf(nextDate), schedule.getTimeStart(), schedule.getTimeStop(), schedule.getStudentGrup());
+                                scheduleCalendar.add(scheduleCalendarElement); //adds the date to the list
+                            }
+                        }
+                        nextDate = nextDate.plus(1, ChronoUnit.DAYS);
+                    }
+
+                    response.setCode(1);
+                    response.setScheduleCalendarList(scheduleCalendar);
+                    return response;
+                }
+                catch (Exception ex) {
+                    response.setCode(-1);
+                    return response;
+                }
+            }
+            else {
+                response.setCode(0);
+                return response;
+            }
         }
         catch (Exception ex) {
             response.setCode(-1);
@@ -540,19 +581,20 @@ public class ApiController {
                                             if(schedule.get().getStudentGrup() == 0 || schedule.get().getStudentGrup() == student.getGrup()) { //only take in consideration specific groups or all groups {
                                                 for(Attendance attendance : attendanceList) {
                                                     if(attendance.getScanDate().equals(scanDate) && attendance.getStudentId() == student.getUserId()) {
-                                                        studentAttendanceList.add(new StudentAttendance(user.get().getFirstName(), user.get().getLastName(), scanDate, "present"));
+                                                        studentAttendanceList.add(new StudentAttendance(0, scanDate, user.get().getFirstName(), user.get().getLastName(), "present"));
                                                         studentFound = 1;
                                                         break;
                                                     }
                                                 }
                                                 if(studentFound == 0) {
-                                                    studentAttendanceList.add(new StudentAttendance(user.get().getFirstName(), user.get().getLastName(), scanDate, "absent"));
+                                                    studentAttendanceList.add(new StudentAttendance(0, scanDate, user.get().getFirstName(), user.get().getLastName(), "absent"));
                                                 }
                                             }
                                         }
                                     }
                                     catch (Exception ex) {
-                                        return null;
+                                        studentAttendanceResponse.setCode(-1);
+                                        return studentAttendanceResponse;
                                     }
                                 }
                                 studentAttendanceResponse.setCode(1);
@@ -582,6 +624,91 @@ public class ApiController {
             }
             else {
                 //impossible condition
+                studentAttendanceResponse.setCode(0);
+                return studentAttendanceResponse;
+            }
+        }
+        catch (Exception ex) {
+            studentAttendanceResponse.setCode(-1);
+            return studentAttendanceResponse;
+        }
+    }
+
+    @GetMapping("/getSubjectAttendanceList/{studentId}&{subjectId}")
+    public StudentAttendanceResponse getSubjectAttendanceList(@PathVariable int studentId, @PathVariable int subjectId) {
+
+        StudentAttendanceResponse studentAttendanceResponse = new StudentAttendanceResponse();
+        List<StudentAttendance> studentAttendanceList = new ArrayList<>();
+
+        try {
+            Optional<Student> student = studentRepo.findByUserId(studentId);
+            if(student.isPresent()) {
+                try {
+                    Optional<Subject> subject = subjectRepo.findById(subjectId);
+                    if(subject.isPresent()) {
+                        AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance(); //reads the calendar for the year and semester periods
+
+                        //change start and stop depending on semester and current date
+                        LocalDate startLocalDate = attendanceCalendar.getYearStart().toLocalDate();
+                        LocalDate endLocalDate = attendanceCalendar.getYearStop().toLocalDate();
+                        if(subject.get().getSemester() == 1) { //semester intervals
+                            endLocalDate = attendanceCalendar.getSemesterIstop().toLocalDate();
+                        }
+                        else {
+                            startLocalDate = attendanceCalendar.getSemesterIIstart().toLocalDate();
+                        }
+                        LocalDate currentDate = LocalDate.now();
+                        if(endLocalDate.compareTo(currentDate) > 0) { //student checks attendance before semester ends
+                            endLocalDate = currentDate;
+                        }
+                        LocalDate nextDate = startLocalDate;
+
+                        try {
+
+                            List<Attendance> attendanceList = new ArrayList<>();
+                            attendanceRepo.findByStudentIdAndSubjectId(studentId, subjectId).forEach(attendanceList::add);
+                            List<Schedule> scheduleList = new ArrayList<>();
+                            scheduleRepo.findBySubjectId(subjectId).forEach(scheduleList::add);
+
+                            while (nextDate.isBefore(endLocalDate)) { //iterates through all days
+                                for(Schedule schedule : scheduleList) {
+                                    if (student.get().getGrup() == schedule.getStudentGrup() && nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
+                                        int attendanceFound = 0;
+                                        for(Attendance attendance : attendanceList) {
+                                            if(attendance.getScanDate().equals(Date.valueOf(nextDate)) && attendance.getScheduleId() == schedule.getId()) {
+                                                studentAttendanceList.add(new StudentAttendance(1, Date.valueOf(nextDate), "", "", "present"));
+                                                attendanceFound = 1;
+                                                break;
+                                            }
+                                        }
+                                        if(attendanceFound == 0){
+                                            studentAttendanceList.add(new StudentAttendance(1, Date.valueOf(nextDate), "", "", "absent"));
+                                        }
+                                    }
+                                }
+                                nextDate = nextDate.plus(1, ChronoUnit.DAYS);
+                            }
+
+                            studentAttendanceResponse.setCode(1);
+                            studentAttendanceResponse.setStudentAttendanceList(studentAttendanceList);
+                            return studentAttendanceResponse;
+                        }
+                        catch (Exception ex) {
+                            studentAttendanceResponse.setCode(-1);
+                            return studentAttendanceResponse;
+                        }
+                    }
+                    else { //impossible request
+                        studentAttendanceResponse.setCode(0);
+                        return studentAttendanceResponse;
+                    }
+                }
+                catch (Exception ex) {
+                    studentAttendanceResponse.setCode(-1);
+                    return studentAttendanceResponse;
+                }
+            }
+            else { //impossible request
                 studentAttendanceResponse.setCode(0);
                 return studentAttendanceResponse;
             }

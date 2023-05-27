@@ -28,6 +28,9 @@ public class Attendance {
     private int studentId; //rename to userId
 
     @Column
+    private int subjectId; //for easier table operations
+
+    @Column
     private int scheduleId;
 
     @Column
