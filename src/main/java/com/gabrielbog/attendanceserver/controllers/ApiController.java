@@ -6,6 +6,7 @@ import com.gabrielbog.attendanceserver.models.responses.*;
 import com.gabrielbog.attendanceserver.repositories.*;
 import com.google.common.hash.Hashing;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.Local;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -279,42 +280,59 @@ public class ApiController {
 
     @GetMapping("/generateQrCode/{id}")
     public QrCodeResponse generateQrCode(@PathVariable int id) {
-        //search for professor
-        //if professor exists, search for the most appropriate schedule row at the time of the request based on received id
-        //if there's any appropriate schedule, generate sha1 hash of id + lastName + time mentioned above and send back
-        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+
+        Timestamp timestamp = new Timestamp(System.currentTimeMillis()); //replace with currentDate and currentTime
+        LocalDate currentDate = LocalDate.now();
+        Time currentTime = Time.valueOf(LocalTime.now());
 
         try {
             Optional<User> user = userRepo.findById(id);
             if (user.isPresent()) {
 
                 if(user.get().getIsAdmin() == 1) {
-                    //search for appropriate schedule
-                    //might be a good idea to check for an already existing code in case professor accidentally exits the app
-
-                    String qrString = Hashing.sha256()
-                            .hashString(String.valueOf(id) + user.get().getFirstName() + dateTimeFormat.format(timestamp).toString(), StandardCharsets.UTF_8)
-                            .toString();
-
-                    Date date = Date.valueOf(LocalDate.now());
-                    //get these from schedule table later
-                    Time timeStart = Time.valueOf(LocalTime.now());
-                    Scancode scancode = new Scancode(); //it's impossible to append the values inside the constructor without it requiring a value for the id
-                    scancode.setSubjectId(0); //change this to the id from the schedule table
-                    scancode.setCode(qrString);
-                    scancode.setCreationDate(date);
-                    scancode.setTimeStart(timeStart); //change these values to the time from the schedule table
-                    scancode.setTimeStop(timeStart);
 
                     try {
-                        scancodeRepo.save(scancode);
+
+                        List<Schedule> scheduleList = new ArrayList<>();
+                        scheduleRepo.findByProfessorId(id).forEach(scheduleList::add);
+
+                        for(Schedule schedule : scheduleList) {
+
+                            int timeStartDifference = currentTime.compareTo(schedule.getTimeStart()); //timeStartDifference > 0 - currentTime comes after timeStart; < 0 - currentTime comes before timeStart
+                            int timeStopDifference = currentTime.compareTo(schedule.getTimeStop());
+
+                            //check if the schedule found is right for this time
+                            if(schedule.getWeekday() == currentDate.getDayOfWeek().getValue() && timeStartDifference > 0 && timeStopDifference < 0) {
+
+                                String qrString = Hashing.sha256()
+                                        .hashString(String.valueOf(id) + user.get().getFirstName() + schedule.getId() + dateTimeFormat.format(timestamp).toString(), StandardCharsets.UTF_8)
+                                        .toString();
+
+                                Scancode scancode = new Scancode(); //it's impossible to append the values inside the constructor without it requiring a value for the id
+                                scancode.setSubjectId(schedule.getSubjectId());
+                                scancode.setScheduleId(schedule.getId());
+                                scancode.setCode(qrString);
+                                scancode.setCreationDate(Date.valueOf(currentDate));
+                                scancode.setTimeStart(schedule.getTimeStart());
+                                scancode.setTimeStop(schedule.getTimeStop());
+
+                                try {
+                                    scancodeRepo.save(scancode);
+                                }
+                                catch (Exception ex) {
+                                    return new QrCodeResponse(-1, "Error during request."); //error during request
+                                }
+
+                                System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getFirstName() + " code: " + qrString); //debug
+                                return new QrCodeResponse(2, qrString);
+                            }
+                        }
+
+                        return new QrCodeResponse(3, "You don't have any schedule in progress right now."); //error during request
                     }
                     catch (Exception ex) {
                         return new QrCodeResponse(-1, "Error during request."); //error during request
                     }
-
-                    System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getFirstName() + " code: " + qrString); //debug
-                    return new QrCodeResponse(2, qrString);
                 }
                 else {
                     System.out.println("[" + timestamp.toString() + "] !!! STUDENT " + user.get().getCnp() + " TRIED TO GENERATE QR CODE !!!"); //debug
@@ -333,10 +351,12 @@ public class ApiController {
     @GetMapping("/scanQrCode/{id}&{code}")
     public QrCodeResponse scanQrCode(@PathVariable int id, @PathVariable String code) {
         Timestamp timestamp = new Timestamp(System.currentTimeMillis());
-        Date date = Date.valueOf(LocalDate.now());
-        Time time = Time.valueOf(LocalTime.now());
+        Date currentDate = Date.valueOf(LocalDate.now());
+        Time currentTime = Time.valueOf(LocalTime.now());
 
         System.out.println(id + " " + code); //debug
+
+        //check if entry exists already
 
         try {
             Optional<Student> student = studentRepo.findByUserId(id);
@@ -346,22 +366,80 @@ public class ApiController {
                     Optional<Scancode> scancode = scancodeRepo.findByCode(code);
                     if(scancode.isPresent()) {
 
-                        //check if date and time at scan are valid
-
-                        Attendance attendance = new Attendance();
-                        attendance.setStudentId(id);
-                        attendance.setScheduleId(0);
-                        attendance.setScanDate(date);
-                        attendance.setScanTime(time);
                         try {
-                            attendanceRepo.save(attendance);
+
+                            List<Attendance> attendanceList = new ArrayList<>();
+                            attendanceRepo.findByScanDateAndScheduleId(currentDate, scancode.get().getScheduleId()).forEach(attendanceList::add);
+
+                            for(Attendance attendance : attendanceList) {
+                                if(attendance.getStudentId() == id) { //stop if user already scanned this code once
+                                    return new QrCodeResponse(1, "You're already attending this schedule.");
+                                }
+                            }
+
+                            int timeStartDifference = currentTime.compareTo(scancode.get().getTimeStart()); //timeStartDifference > 0 - currentTime comes after timeStart; < 0 - currentTime comes before timeStart
+                            int timeStopDifference = currentTime.compareTo(scancode.get().getTimeStop());
+
+                            //check if the date and time at scan is valid
+                            if(scancode.get().getCreationDate().equals(currentDate) && timeStartDifference > 0 && timeStopDifference < 0) {
+                                try {
+                                    //check if the student year grade specialization match
+                                    Optional<Schedule> schedule = scheduleRepo.findById(scancode.get().getScheduleId());
+                                    if(schedule.isPresent()) {
+
+                                        try {
+                                            Optional<Subject> subject = subjectRepo.findById(schedule.get().getSubjectId());
+                                            if(subject.isPresent()) {
+                                                if(student.get().getSpec() == subject.get().getSpec() && student.get().getGrade() == subject.get().getGrade()) {
+                                                    if(student.get().getGrup() == schedule.get().getStudentGrup()) {
+
+                                                        Attendance attendance = new Attendance();
+                                                        attendance.setStudentId(id);
+                                                        attendance.setScheduleId(scancode.get().getSubjectId());
+                                                        attendance.setSubjectId(subject.get().getId());
+                                                        attendance.setScanDate(currentDate);
+                                                        attendance.setScanTime(currentTime);
+                                                        try {
+                                                            attendanceRepo.save(attendance);
+                                                        }
+                                                        catch (Exception ex) {
+                                                            return new QrCodeResponse(-1, "Error during request.");
+                                                        }
+
+                                                        System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
+                                                        return new QrCodeResponse(2, "You're now attending!");
+                                                    }
+                                                    else {
+                                                        return new QrCodeResponse(1, "Invalid QR Code.");
+                                                    }
+                                                }
+                                                else {
+                                                    return new QrCodeResponse(1, "Invalid QR Code.");
+                                                }
+                                            }
+                                            else { //impossible error
+                                                return new QrCodeResponse(0, "");
+                                            }
+                                        }
+                                        catch (Exception ex) {
+                                            return new QrCodeResponse(-1, "Error during request.");
+                                        }
+                                    }
+                                    else { //impossible error
+                                        return new QrCodeResponse(0, "");
+                                    }
+                                }
+                                catch (Exception ex) {
+                                    return new QrCodeResponse(-1, "Error during request.");
+                                }
+                            }
+                            else {
+                                return new QrCodeResponse(1, "The code has expired.");
+                            }
                         }
-                        catch (Exception ex) {
+                        catch(Exception ex) {
                             return new QrCodeResponse(-1, "Error during request.");
                         }
-
-                        System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
-                        return new QrCodeResponse(2, "You're now attending!");
                     }
                     else {
                         return new QrCodeResponse(1, "Invalid QR Code.");
@@ -371,7 +449,7 @@ public class ApiController {
                     return new QrCodeResponse(-1, "Error during request.");
                 }
             }
-            else {
+            else { //impossible error
                 return new QrCodeResponse(0, "Invalid student.");
             }
         }

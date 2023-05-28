@@ -28,6 +28,9 @@ public class Scancode {
     private int subjectId;
 
     @Column
+    private int scheduleId;
+
+    @Column
     private String code; //sha1-hashed code of schedule, professor and creation timestamp
 
     @Column
