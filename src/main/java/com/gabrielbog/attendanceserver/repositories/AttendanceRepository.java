@@ -12,5 +12,6 @@ import java.util.Optional;
 @Repository
 public interface AttendanceRepository extends JpaRepository<Attendance, Integer> {
     List<Attendance> findByScanDateAndScheduleId(Date scanDate, int scheduleId);
+    List<Attendance> findByScanDate(Date scanDate);
     List<Attendance> findByStudentIdAndSubjectId(int studentId, int subjectId);
 }

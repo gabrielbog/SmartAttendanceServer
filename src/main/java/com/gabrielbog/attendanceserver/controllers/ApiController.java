@@ -320,31 +320,43 @@ public class ApiController {
                                     scancodeRepo.save(scancode);
                                 }
                                 catch (Exception ex) {
-                                    return new QrCodeResponse(-1, "Error during request."); //error during request
+                                    return new QrCodeResponse(-1, "Error during request.", ""); //error during request
                                 }
 
-                                System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getFirstName() + " code: " + qrString); //debug
-                                return new QrCodeResponse(2, qrString);
+                                try {
+                                    Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
+                                    if(subject.isPresent()) {
+                                        System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getFirstName() + " code: " + qrString); //debug
+                                        return new QrCodeResponse(2, qrString, subject.get().getName());
+                                    }
+                                    else { //impossible condition
+                                        System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getFirstName() + " code: " + qrString); //debug
+                                        return new QrCodeResponse(2, qrString, "");
+                                    }
+                                }
+                                catch (Exception ex) {
+                                    return new QrCodeResponse(-1, "Error during request.", ""); //error during request
+                                }
                             }
                         }
 
-                        return new QrCodeResponse(3, "You don't have any schedule in progress right now."); //error during request
+                        return new QrCodeResponse(3, "You don't have any schedule in progress right now.", ""); //error during request
                     }
                     catch (Exception ex) {
-                        return new QrCodeResponse(-1, "Error during request."); //error during request
+                        return new QrCodeResponse(-1, "Error during request.", ""); //error during request
                     }
                 }
                 else {
                     System.out.println("[" + timestamp.toString() + "] !!! STUDENT " + user.get().getCnp() + " TRIED TO GENERATE QR CODE !!!"); //debug
-                    return new QrCodeResponse(1, ""); //request from non-professor
+                    return new QrCodeResponse(1, "", ""); //request from non-professor
                 }
             }
             else {
-                return new QrCodeResponse(0, ""); //invalid id
+                return new QrCodeResponse(0, "", ""); //invalid id
             }
         }
         catch (Exception ex) {
-            return new QrCodeResponse(-1, "Error during request."); //error during request
+            return new QrCodeResponse(-1, "Error during request.", ""); //error during request
         }
     }
 
@@ -355,8 +367,6 @@ public class ApiController {
         Time currentTime = Time.valueOf(LocalTime.now());
 
         System.out.println(id + " " + code); //debug
-
-        //check if entry exists already
 
         try {
             Optional<Student> student = studentRepo.findByUserId(id);
@@ -369,11 +379,11 @@ public class ApiController {
                         try {
 
                             List<Attendance> attendanceList = new ArrayList<>();
-                            attendanceRepo.findByScanDateAndScheduleId(currentDate, scancode.get().getScheduleId()).forEach(attendanceList::add);
+                            attendanceRepo.findByScanDate(currentDate).forEach(attendanceList::add);
 
                             for(Attendance attendance : attendanceList) {
-                                if(attendance.getStudentId() == id) { //stop if user already scanned this code once
-                                    return new QrCodeResponse(1, "You're already attending this schedule.");
+                                if(attendance.getStudentId() == id && attendance.getScheduleId() == scancode.get().getScheduleId()) { //stop if user already scanned this code once
+                                    return new QrCodeResponse(1, "You're already attending this schedule.", "");
                                 }
                             }
 
@@ -391,7 +401,7 @@ public class ApiController {
                                             Optional<Subject> subject = subjectRepo.findById(schedule.get().getSubjectId());
                                             if(subject.isPresent()) {
                                                 if(student.get().getSpec() == subject.get().getSpec() && student.get().getGrade() == subject.get().getGrade()) {
-                                                    if(student.get().getGrup() == schedule.get().getStudentGrup()) {
+                                                    if(schedule.get().getStudentGrup() == student.get().getGrup() || schedule.get().getStudentGrup() == 0) {
 
                                                         Attendance attendance = new Attendance();
                                                         attendance.setStudentId(id);
@@ -403,58 +413,58 @@ public class ApiController {
                                                             attendanceRepo.save(attendance);
                                                         }
                                                         catch (Exception ex) {
-                                                            return new QrCodeResponse(-1, "Error during request.");
+                                                            return new QrCodeResponse(-1, "Error during request.", "");
                                                         }
 
                                                         System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
-                                                        return new QrCodeResponse(2, "You're now attending!");
+                                                        return new QrCodeResponse(2, "You're now attending!", "");
                                                     }
                                                     else {
-                                                        return new QrCodeResponse(1, "Invalid QR Code.");
+                                                        return new QrCodeResponse(1, "Invalid QR Code.", "");
                                                     }
                                                 }
                                                 else {
-                                                    return new QrCodeResponse(1, "Invalid QR Code.");
+                                                    return new QrCodeResponse(1, "Invalid QR Code.", "");
                                                 }
                                             }
                                             else { //impossible error
-                                                return new QrCodeResponse(0, "");
+                                                return new QrCodeResponse(0, "", "");
                                             }
                                         }
                                         catch (Exception ex) {
-                                            return new QrCodeResponse(-1, "Error during request.");
+                                            return new QrCodeResponse(-1, "Error during request.", "");
                                         }
                                     }
                                     else { //impossible error
-                                        return new QrCodeResponse(0, "");
+                                        return new QrCodeResponse(0, "", "");
                                     }
                                 }
                                 catch (Exception ex) {
-                                    return new QrCodeResponse(-1, "Error during request.");
+                                    return new QrCodeResponse(-1, "Error during request.", "");
                                 }
                             }
                             else {
-                                return new QrCodeResponse(1, "The code has expired.");
+                                return new QrCodeResponse(1, "The code has expired.", "");
                             }
                         }
                         catch(Exception ex) {
-                            return new QrCodeResponse(-1, "Error during request.");
+                            return new QrCodeResponse(-1, "Error during request.", "");
                         }
                     }
                     else {
-                        return new QrCodeResponse(1, "Invalid QR Code.");
+                        return new QrCodeResponse(1, "Invalid QR Code.", "");
                     }
                 }
                 catch (Exception ex) {
-                    return new QrCodeResponse(-1, "Error during request.");
+                    return new QrCodeResponse(-1, "Error during request.", "");
                 }
             }
             else { //impossible error
-                return new QrCodeResponse(0, "Invalid student.");
+                return new QrCodeResponse(0, "Invalid student.", "");
             }
         }
         catch (Exception ex) {
-            return new QrCodeResponse(-1, "Error during request.");
+            return new QrCodeResponse(-1, "Error during request.", "");
         }
     }
 
@@ -744,7 +754,7 @@ public class ApiController {
                         try {
 
                             List<Attendance> attendanceList = new ArrayList<>();
-                            attendanceRepo.findByStudentIdAndSubjectId(studentId, subjectId).forEach(attendanceList::add);
+                            attendanceRepo.findByStudentIdAndSubjectId(studentId, subjectId).forEach(attendanceList::add); //this might not work, check out
                             List<Schedule> scheduleList = new ArrayList<>();
                             scheduleRepo.findBySubjectId(subjectId).forEach(scheduleList::add);
 

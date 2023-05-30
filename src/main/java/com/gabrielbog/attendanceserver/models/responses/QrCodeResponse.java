@@ -10,4 +10,5 @@ import lombok.*;
 public class QrCodeResponse {
     private int code;
     private String qrString;
+    private String additionalString;
 }
