@@ -405,7 +405,7 @@ public class ApiController {
 
                                                         Attendance attendance = new Attendance();
                                                         attendance.setStudentId(id);
-                                                        attendance.setScheduleId(scancode.get().getSubjectId());
+                                                        attendance.setScheduleId(scancode.get().getScheduleId());
                                                         attendance.setSubjectId(subject.get().getId());
                                                         attendance.setScanDate(currentDate);
                                                         attendance.setScanTime(currentTime);
@@ -760,7 +760,7 @@ public class ApiController {
 
                             while (nextDate.isBefore(endLocalDate)) { //iterates through all days
                                 for(Schedule schedule : scheduleList) {
-                                    if (student.get().getGrup() == schedule.getStudentGrup() && nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
+                                    if ((schedule.getStudentGrup() == student.get().getGrup() || schedule.getStudentGrup() == 0) && nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
                                         int attendanceFound = 0;
                                         for(Attendance attendance : attendanceList) {
                                             if(attendance.getScanDate().equals(Date.valueOf(nextDate)) && attendance.getScheduleId() == schedule.getId()) {
