@@ -722,6 +722,140 @@ public class ApiController {
         }
     }
 
+    @GetMapping("/getProfessorGrups/{professorId}&{subjectId}")
+    public ProfessorGrupsResponse getProfessorGrups(@PathVariable int professorId, @PathVariable int subjectId) {
+        //this is only meant for schedules that aren't courses
+        ProfessorGrupsResponse response = new ProfessorGrupsResponse();
+        List<ProfessorGrups> professorGrupsList = new ArrayList<>();
+
+        try {
+            List<Schedule> scheduleList = new ArrayList<>();
+            scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId).forEach(scheduleList::add);
+            for(Schedule schedule : scheduleList) {
+                int grupFound = 0;
+                for(ProfessorGrups professorGrups : professorGrupsList) {
+                    if(professorGrups.getGrup() == schedule.getStudentGrup()) {
+                        grupFound = 1;
+                        break;
+                    }
+                }
+                if(grupFound == 0) {
+                    professorGrupsList.add(new ProfessorGrups(schedule.getStudentGrup()));
+                }
+            }
+
+            response.setCode(1);
+            Collections.sort(professorGrupsList, ProfessorGrups::compareTo);
+            response.setProfessorGrupsList(professorGrupsList);
+            return response;
+        }
+        catch (Exception ex) {
+            response.setCode(-1);
+            return response;
+        }
+    }
+
+    @GetMapping("/getTotalAttendingStudentsList/{professorId}&{subjectId}&{grup}")
+    public StudentAttendanceResponse getTotalAttendingStudentsList(@PathVariable int professorId, @PathVariable int subjectId, @PathVariable int grup) {
+
+        StudentAttendanceResponse studentAttendanceResponse = new StudentAttendanceResponse();
+        List<StudentAttendance> studentAttendanceList = new ArrayList<>();
+
+        try {
+            Optional<Subject> subject = subjectRepo.findById(subjectId);
+            if(subject.isPresent()) {
+                try {
+                    List<Student> studentList = new ArrayList<>();
+                    studentRepo.findByGradeAndSpec(subject.get().getGrade(), subject.get().getSpec()).forEach(studentList::add);
+                    try {
+                        AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance(); //reads the calendar for the year and semester periods
+
+                        //change start and stop depending on semester and current date
+                        LocalDate startLocalDate = attendanceCalendar.getYearStart().toLocalDate();
+                        LocalDate endLocalDate = attendanceCalendar.getYearStop().toLocalDate();
+                        if(subject.get().getSemester() == 1) { //semester intervals
+                            endLocalDate = attendanceCalendar.getSemesterIstop().toLocalDate();
+                        }
+                        else {
+                            startLocalDate = attendanceCalendar.getSemesterIIstart().toLocalDate();
+                        }
+                        LocalDate currentDate = LocalDate.now();
+                        if(endLocalDate.compareTo(currentDate) > 0) { //student checks attendance before semester ends
+                            endLocalDate = currentDate;
+                        }
+                        LocalDate nextDate = startLocalDate;
+
+                        List<Schedule> scheduleList = new ArrayList<>();
+                        scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId).forEach(scheduleList::add);
+
+                        while (nextDate.isBefore(endLocalDate)) { //iterates through all days
+                            for(Schedule schedule : scheduleList) {
+                                if (nextDate.getDayOfWeek().getValue() == schedule.getWeekday() && schedule.getStudentGrup() == grup) { //checks if the days match
+
+                                    try {
+                                        List<Attendance> attendanceList = new ArrayList<>();
+                                        attendanceRepo.findByScanDateAndScheduleId(Date.valueOf(nextDate), schedule.getId()).forEach(attendanceList::add);
+                                        for(Student student : studentList) {
+                                            try {
+                                                Optional<User> user = userRepo.findById(student.getUserId());
+                                                if(user.isPresent()) {
+
+                                                    int studentFound = 0;
+                                                    if(schedule.getStudentGrup() == 0 || schedule.getStudentGrup() == student.getGrup()) { //only take in consideration specific groups or all groups {
+                                                        for(Attendance attendance : attendanceList) {
+                                                            if(attendance.getScanDate().equals(Date.valueOf(nextDate)) && attendance.getStudentId() == student.getUserId()) {
+                                                                studentAttendanceList.add(new StudentAttendance(0, Date.valueOf(nextDate), user.get().getFirstName(), user.get().getLastName(), "present"));
+                                                                studentFound = 1;
+                                                                break;
+                                                            }
+                                                        }
+                                                        if(studentFound == 0) {
+                                                            studentAttendanceList.add(new StudentAttendance(0, Date.valueOf(nextDate), user.get().getFirstName(), user.get().getLastName(), "absent"));
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            catch (Exception ex) {
+                                                studentAttendanceResponse.setCode(-1);
+                                                return studentAttendanceResponse;
+                                            }
+                                        }
+                                    }
+                                    catch (Exception ex) {
+                                        studentAttendanceResponse.setCode(-1);
+                                        return studentAttendanceResponse;
+                                    }
+
+                                }
+                            }
+                            nextDate = nextDate.plus(1, ChronoUnit.DAYS);
+                        }
+
+                        studentAttendanceResponse.setCode(1);
+                        studentAttendanceResponse.setStudentAttendanceList(studentAttendanceList);
+                        return studentAttendanceResponse;
+                    }
+                    catch (Exception ex) {
+                        studentAttendanceResponse.setCode(-1);
+                        return studentAttendanceResponse;
+                    }
+                }
+                catch (Exception ex) {
+                    studentAttendanceResponse.setCode(-1);
+                    return studentAttendanceResponse;
+                }
+            }
+            else {
+                studentAttendanceResponse.setCode(0);
+                return studentAttendanceResponse;
+            }
+        }
+        catch (Exception ex) {
+            studentAttendanceResponse.setCode(-1);
+            return studentAttendanceResponse;
+        }
+    }
+
     @GetMapping("/getSubjectAttendanceList/{studentId}&{subjectId}")
     public StudentAttendanceResponse getSubjectAttendanceList(@PathVariable int studentId, @PathVariable int subjectId) {
 
