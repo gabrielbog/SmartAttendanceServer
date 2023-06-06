@@ -6,10 +6,11 @@ import java.util.List;
 
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter
 @Getter
+@Setter
 @ToString
 public class StudentAttendanceResponse {
     private int code;
+    private int completeCalendarCount;
     private List<StudentAttendance> studentAttendanceList;
 }

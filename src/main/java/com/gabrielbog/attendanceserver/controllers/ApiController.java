@@ -669,13 +669,13 @@ public class ApiController {
                                             if(schedule.get().getStudentGrup() == 0 || schedule.get().getStudentGrup() == student.getGrup()) { //only take in consideration specific groups or all groups {
                                                 for(Attendance attendance : attendanceList) {
                                                     if(attendance.getScanDate().equals(scanDate) && attendance.getStudentId() == student.getUserId()) {
-                                                        studentAttendanceList.add(new StudentAttendance(0, scanDate, user.get().getFirstName(), user.get().getLastName(), "present"));
+                                                        studentAttendanceList.add(new StudentAttendance(0, scanDate, null, null, user.get().getFirstName(), user.get().getLastName(), "present"));
                                                         studentFound = 1;
                                                         break;
                                                     }
                                                 }
                                                 if(studentFound == 0) {
-                                                    studentAttendanceList.add(new StudentAttendance(0, scanDate, user.get().getFirstName(), user.get().getLastName(), "absent"));
+                                                    studentAttendanceList.add(new StudentAttendance(0, scanDate, null, null, user.get().getFirstName(), user.get().getLastName(), "absent"));
                                                 }
                                             }
                                         }
@@ -804,13 +804,13 @@ public class ApiController {
                                                     if(schedule.getStudentGrup() == 0 || schedule.getStudentGrup() == student.getGrup()) { //only take in consideration specific groups or all groups {
                                                         for(Attendance attendance : attendanceList) {
                                                             if(attendance.getScanDate().equals(Date.valueOf(nextDate)) && attendance.getStudentId() == student.getUserId()) {
-                                                                studentAttendanceList.add(new StudentAttendance(0, Date.valueOf(nextDate), user.get().getFirstName(), user.get().getLastName(), "present"));
+                                                                studentAttendanceList.add(new StudentAttendance(0, Date.valueOf(nextDate), schedule.getTimeStart(), schedule.getTimeStop(), user.get().getFirstName(), user.get().getLastName(), "present"));
                                                                 studentFound = 1;
                                                                 break;
                                                             }
                                                         }
                                                         if(studentFound == 0) {
-                                                            studentAttendanceList.add(new StudentAttendance(0, Date.valueOf(nextDate), user.get().getFirstName(), user.get().getLastName(), "absent"));
+                                                            studentAttendanceList.add(new StudentAttendance(0, Date.valueOf(nextDate), schedule.getTimeStart(), schedule.getTimeStop(), user.get().getFirstName(), user.get().getLastName(), "absent"));
                                                         }
                                                     }
                                                 }
@@ -880,9 +880,6 @@ public class ApiController {
                             startLocalDate = attendanceCalendar.getSemesterIIstart().toLocalDate();
                         }
                         LocalDate currentDate = LocalDate.now();
-                        if(endLocalDate.compareTo(currentDate) > 0) { //student checks attendance before semester ends
-                            endLocalDate = currentDate;
-                        }
                         LocalDate nextDate = startLocalDate;
 
                         try {
@@ -892,26 +889,31 @@ public class ApiController {
                             List<Schedule> scheduleList = new ArrayList<>();
                             scheduleRepo.findBySubjectId(subjectId).forEach(scheduleList::add);
 
+                            int completeCalendarCount = 0;
                             while (nextDate.isBefore(endLocalDate)) { //iterates through all days
                                 for(Schedule schedule : scheduleList) {
                                     if ((schedule.getStudentGrup() == student.get().getGrup() || schedule.getStudentGrup() == 0) && nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
-                                        int attendanceFound = 0;
-                                        for(Attendance attendance : attendanceList) {
-                                            if(attendance.getScanDate().equals(Date.valueOf(nextDate)) && attendance.getScheduleId() == schedule.getId()) {
-                                                studentAttendanceList.add(new StudentAttendance(1, Date.valueOf(nextDate), "", "", "present"));
-                                                attendanceFound = 1;
-                                                break;
+                                        if(nextDate.compareTo(currentDate) < 0) { //student checks attendance before semester ends
+                                            int attendanceFound = 0;
+                                            for(Attendance attendance : attendanceList) {
+                                                if(attendance.getScanDate().equals(Date.valueOf(nextDate)) && attendance.getScheduleId() == schedule.getId()) {
+                                                    studentAttendanceList.add(new StudentAttendance(1, Date.valueOf(nextDate), schedule.getTimeStart(), schedule.getTimeStop(), "", "", "present"));
+                                                    attendanceFound = 1;
+                                                    break;
+                                                }
+                                            }
+                                            if(attendanceFound == 0){
+                                                studentAttendanceList.add(new StudentAttendance(1, Date.valueOf(nextDate), schedule.getTimeStart(), schedule.getTimeStop(), "", "", "absent"));
                                             }
                                         }
-                                        if(attendanceFound == 0){
-                                            studentAttendanceList.add(new StudentAttendance(1, Date.valueOf(nextDate), "", "", "absent"));
-                                        }
+                                        ++completeCalendarCount; //count every valid day for the student to check in app
                                     }
                                 }
                                 nextDate = nextDate.plus(1, ChronoUnit.DAYS);
                             }
 
                             studentAttendanceResponse.setCode(1);
+                            studentAttendanceResponse.setCompleteCalendarCount(completeCalendarCount);
                             studentAttendanceResponse.setStudentAttendanceList(studentAttendanceList);
                             return studentAttendanceResponse;
                         }
