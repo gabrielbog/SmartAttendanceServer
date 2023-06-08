@@ -4,11 +4,13 @@ import lombok.*;
 
 @NoArgsConstructor
 @AllArgsConstructor
-@Setter
 @Getter
+@Setter
 @ToString
 public class QrCodeResponse {
     private int code;
+    private long duration; //in milliseconds
     private String qrString;
-    private String additionalString;
+    private String subjectString;
+    private int grup;
 }

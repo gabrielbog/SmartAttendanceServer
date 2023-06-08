@@ -37,8 +37,11 @@ public class Scancode {
     private Date creationDate; //the code will be valid only for a day
 
     @Column
-    private Time timeStart; //so that there won't be another query on the schedule table
+    private Time timeGenerated; //used when refreshing the code
 
     @Column
-    private Time timeStop; //so that there won't be another query on the schedule table
+    private Time timeStart; //for easier table operations
+
+    @Column
+    private Time timeStop; //for easier table operations
 }
