@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Add User - SmartAttendance</title>
+</head>
+<body>
+    <h1>Add User</h1>
+    <form th:action="@{/addUser}" th:object="${addUserForm}" method="post">
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="firstName">
+        <br>
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="lastName">
+        <br>
+        <label for="cnp">CNP</label>
+        <input type="number" id="cnp" name="cnp">
+        <br>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password">
+        <br>
+        <input type="submit" value="Add User">
+        <p th:if="${addUserFormError}" th:text="${addUserFormError}"></p>
+    </form>
+</body>
+</html>

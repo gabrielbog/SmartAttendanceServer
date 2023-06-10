@@ -14,7 +14,7 @@
     <input type="password" id="password" name="password">
     <br>
     <input type="submit" value="Log In">
-    <p th:if="${invalidCredentials}" class="loginError">Incorrect credentials</p>
+    <p th:if="${invalidCredentials}">Incorrect credentials</p>
   </form>
 </body>
 </html>

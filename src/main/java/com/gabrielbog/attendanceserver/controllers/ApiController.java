@@ -1,11 +1,13 @@
 package com.gabrielbog.attendanceserver.controllers;
 
+import com.gabrielbog.attendanceserver.Constants;
 import com.gabrielbog.attendanceserver.AttendanceCalendar;
 import com.gabrielbog.attendanceserver.models.*;
 import com.gabrielbog.attendanceserver.models.responses.*;
 import com.gabrielbog.attendanceserver.repositories.*;
 import com.google.common.hash.Hashing;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.Local;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -20,9 +22,6 @@ import java.util.*;
 @RestController
 @RequestMapping("/api")
 public class ApiController {
-
-    //Constants
-    private static final int CODE_DURATION = 300000; //5 minutes in milliseconds
 
     //Database Access
     @Autowired
@@ -46,9 +45,6 @@ public class ApiController {
     @Autowired
     ScancodeRepository scancodeRepo;
 
-
-    //http requests
-
     /*
         users
     */
@@ -69,80 +65,50 @@ public class ApiController {
         }
     }
 
-    @GetMapping("/getUserById/{id}")
-    public User getUserById(@PathVariable int id) {
-        Optional<User> user = userRepo.findById(id);
-        if (user.isPresent()) {
-            return user.get();
-        }
-        else {
-            return null;
-        }
-    }
-
     @GetMapping("/getUserByCnpAndPassword/{cnp}&{password}")
     public LogInResponse getUserByCnpAndPassword(@PathVariable String cnp, @PathVariable String password) {
         //might be a good idea to find only by cnp, then compare passwords by code
-        Optional<User> user = userRepo.findByCnpAndPassword(cnp, password);
-        Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+        try {
+            Optional<User> user = userRepo.findByCnp(cnp);
+            Date date = Date.valueOf(LocalDate.now());
+            Time time = Time.valueOf(LocalTime.now());
 
-        if (user.isPresent()) {
-            if(user.get().getIsAdmin() == 0) {
-                //check if student exists
-                Optional<Student> student = studentRepo.findByUserId(user.get().getId());
-                if(student.isPresent()) {
-                    System.out.println("[" + timestamp.toString() + "] Student " + user.get().getCnp() + " logged in"); //debug
-                    return new LogInResponse(1, user.get().getId(), user.get().getIsAdmin(), user.get().getFirstName(), user.get().getLastName());
+            if (user.isPresent()) {
+                if(user.get().getPassword().equals(Hashing.sha256().hashString(password, StandardCharsets.UTF_8).toString())) {
+                    if(user.get().getIsAdmin() == 0) {
+                        //check if student exists
+                        try {
+                            Optional<Student> student = studentRepo.findByUserId(user.get().getId());
+                            if(student.isPresent()) {
+                                System.out.println("[" + date.toString() + " " + time.toString() + "] Student " + user.get().getCnp() + " logged in"); //debug
+                                return new LogInResponse(1, user.get().getId(), user.get().getIsAdmin(), user.get().getFirstName(), user.get().getLastName());
+                            }
+                            else {
+                                //invalid user - might be a good idea to store this in a log on the server
+                                System.out.println("[" + date.toString() + " " + time.toString() + "] !!! STUDENT " + user.get().getCnp() + " HAS NO STUDENT TABLE ENTRY !!!"); //debug
+                                return new LogInResponse(0, 0, 0, "", "");
+                            }
+                        }
+                        catch(Exception ex) {
+                            return new LogInResponse(-1, 0, 0, "Error during request", "");
+                        }
+                    }
+                    else {
+                        //return professor response
+                        System.out.println("[" + date.toString() + " " + time.toString() + "] Professor " + user.get().getCnp() + " logged in"); //debug
+                        return new LogInResponse(1, user.get().getId(), user.get().getIsAdmin(), user.get().getFirstName(), user.get().getLastName());
+                    }
                 }
                 else {
-                    //invalid user - might be a good idea to store this in a log on the server
-                    System.out.println("[" + timestamp.toString() + "] !!! STUDENT " + user.get().getCnp() + " HAS NO STUDENT TABLE ENTRY !!!"); //debug
                     return new LogInResponse(0, 0, 0, "", "");
                 }
             }
             else {
-                //return professor response
-                System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getCnp() + " logged in"); //debug
-                return new LogInResponse(1, user.get().getId(), user.get().getIsAdmin(), user.get().getFirstName(), user.get().getLastName());
+                return new LogInResponse(0, 0, 0, "", "");
             }
         }
-        else {
-            return new LogInResponse(0, 0, 0, "", "");
-        }
-    }
-
-    @PostMapping("/addUser")
-    public int addUser(@RequestBody User user) {
-        try {
-            //hash the password using sha128/256
-            userRepo.save(user);
-            return 1;
-        }
-        catch (Exception ex) {
-            return 0;
-        }
-    }
-
-    @DeleteMapping("/deleteUserById/{id}")
-    public int deleteUser(@PathVariable int id) {
-        try {
-            userRepo.deleteById(id);
-            //check if user is student too, delete from that database aswell
-            return 1;
-        }
-        catch (Exception ex) {
-            return 0;
-        }
-    }
-
-    @DeleteMapping("/deleteAllUsers")
-    public int deleteAllUsers() {
-        try {
-            userRepo.deleteAll();
-            return 1;
-        }
-        catch (Exception ex) {
-            return 0;
+        catch(Exception ex) {
+            return new LogInResponse(-1, 0, 0, "Error during request", "");
         }
     }
 
@@ -275,91 +241,6 @@ public class ApiController {
         attendance
     */
 
-    /*
-    //here in case short duration code validity doesn't work
-    @GetMapping("/generateQrCode/{id}")
-    public QrCodeResponse generateQrCode(@PathVariable int id) {
-
-        Timestamp timestamp = new Timestamp(System.currentTimeMillis()); //replace with currentDate and currentTime
-        LocalDate currentDate = LocalDate.now();
-        Time currentTime = Time.valueOf(LocalTime.now());
-
-        try {
-            Optional<User> user = userRepo.findById(id);
-            if (user.isPresent()) {
-
-                if(user.get().getIsAdmin() == 1) {
-
-                    try {
-
-                        List<Schedule> scheduleList = new ArrayList<>();
-                        scheduleRepo.findByProfessorId(id).forEach(scheduleList::add);
-
-                        for(Schedule schedule : scheduleList) {
-
-                            int timeStartDifference = currentTime.compareTo(schedule.getTimeStart()); //timeStartDifference > 0 - currentTime comes after timeStart; < 0 - currentTime comes before timeStart
-                            int timeStopDifference = currentTime.compareTo(schedule.getTimeStop());
-
-                            //check if the schedule found is right for this time
-                            if(schedule.getWeekday() == currentDate.getDayOfWeek().getValue() && timeStartDifference > 0 && timeStopDifference < 0) {
-
-                                String qrString = Hashing.sha256()
-                                        .hashString(String.valueOf(id) + user.get().getFirstName() + schedule.getId() + dateTimeFormat.format(timestamp).toString(), StandardCharsets.UTF_8)
-                                        .toString();
-
-                                Scancode scancode = new Scancode(); //it's impossible to append the values inside the constructor without it requiring a value for the id
-                                scancode.setSubjectId(schedule.getSubjectId());
-                                scancode.setScheduleId(schedule.getId());
-                                scancode.setCode(qrString);
-                                scancode.setCreationDate(Date.valueOf(currentDate));
-                                scancode.setTimeStart(schedule.getTimeStart());
-                                scancode.setTimeStop(schedule.getTimeStop());
-
-                                try {
-                                    scancodeRepo.save(scancode);
-                                }
-                                catch (Exception ex) {
-                                    return new QrCodeResponse(-1, "Error during request.", ""); //error during request
-                                }
-
-                                try {
-                                    Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
-                                    if(subject.isPresent()) {
-                                        System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getFirstName() + " code: " + qrString); //debug
-                                        return new QrCodeResponse(2, qrString, subject.get().getName());
-                                    }
-                                    else { //impossible condition
-                                        System.out.println("[" + timestamp.toString() + "] Professor " + user.get().getFirstName() + " code: " + qrString); //debug
-                                        return new QrCodeResponse(2, qrString, "");
-                                    }
-                                }
-                                catch (Exception ex) {
-                                    return new QrCodeResponse(-1, "Error during request.", ""); //error during request
-                                }
-                            }
-                        }
-
-                        return new QrCodeResponse(3, "You don't have any schedule in progress right now.", ""); //error during request
-                    }
-                    catch (Exception ex) {
-                        return new QrCodeResponse(-1, "Error during request.", ""); //error during request
-                    }
-                }
-                else {
-                    System.out.println("[" + timestamp.toString() + "] !!! STUDENT " + user.get().getCnp() + " TRIED TO GENERATE QR CODE !!!"); //debug
-                    return new QrCodeResponse(1, "", ""); //request from non-professor
-                }
-            }
-            else {
-                return new QrCodeResponse(0, "", ""); //invalid id
-            }
-        }
-        catch (Exception ex) {
-            return new QrCodeResponse(-1, "Error during request.", ""); //error during request
-        }
-    }
-    */
-
     @GetMapping("/generateQrCode/{id}")
     public QrCodeResponse generateQrCode(@PathVariable int id) {
 
@@ -394,7 +275,7 @@ public class ApiController {
                                         scancode = existingScancode.get();
                                         long timeDifference = currentTime.getTime() - scancode.getTimeGenerated().getTime();
                                         System.out.println(timeDifference);
-                                        if(timeDifference >= CODE_DURATION) {
+                                        if(timeDifference >= Constants.CODE_DURATION) {
 
                                             String qrString = Hashing.sha256()
                                                     .hashString(String.valueOf(id) + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString(), StandardCharsets.UTF_8)
@@ -413,7 +294,7 @@ public class ApiController {
                                                 Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
                                                 if(subject.isPresent()) {
                                                     System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
-                                                    return new QrCodeResponse(2, CODE_DURATION, qrString, subject.get().getName(), schedule.getStudentGrup());
+                                                    return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, subject.get().getName(), schedule.getStudentGrup());
                                                 }
                                                 else { //impossible condition
                                                     System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
@@ -430,7 +311,7 @@ public class ApiController {
                                                 Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
                                                 if(subject.isPresent()) {
                                                     System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " requested code: " + existingScancode.get().getCode()); //debug
-                                                    return new QrCodeResponse(2, CODE_DURATION - timeDifference, existingScancode.get().getCode(), subject.get().getName(), schedule.getStudentGrup());
+                                                    return new QrCodeResponse(2, Constants.CODE_DURATION - timeDifference, existingScancode.get().getCode(), subject.get().getName(), schedule.getStudentGrup());
                                                 }
                                                 else { //impossible condition
                                                     System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " requested code: " + existingScancode.get().getCode()); //debug
@@ -466,7 +347,7 @@ public class ApiController {
                                             Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
                                             if(subject.isPresent()) {
                                                 System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " generated code: " + qrString); //debug
-                                                return new QrCodeResponse(2, CODE_DURATION, qrString, subject.get().getName(), schedule.getStudentGrup());
+                                                return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, subject.get().getName(), schedule.getStudentGrup());
                                             }
                                             else { //impossible condition
                                                 System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " generated code: " + qrString); //debug
@@ -536,7 +417,7 @@ public class ApiController {
                                 }
 
                                 System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
-                                return new QrCodeResponse(2, CODE_DURATION, qrString, "", 0); //returning subjectString and grup is pointless, mobile app is supposed to have it already
+                                return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, "", 0); //returning subjectString and grup is pointless, mobile app is supposed to have it already
                             }
                             else {
                                 return new QrCodeResponse(3, 0, "The schedule has finished.", "", 0);
