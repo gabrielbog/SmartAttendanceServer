@@ -269,13 +269,13 @@ public class ApiController {
                                 try {
 
                                     Optional<Scancode> existingScancode = scancodeRepo.findByCreationDateAndScheduleId(Date.valueOf(currentDate), schedule.getId());
-                                    Scancode scancode = new Scancode();
+                                    Scancode scancode = null;
                                     if(existingScancode.isPresent()) { //generated code already exists
 
                                         scancode = existingScancode.get();
                                         long timeDifference = currentTime.getTime() - scancode.getTimeGenerated().getTime();
                                         System.out.println(timeDifference);
-                                        if(timeDifference >= Constants.CODE_DURATION) {
+                                        if(timeDifference >= Constants.CODE_DURATION) { //is the code older than it's supossed to?
 
                                             String qrString = Hashing.sha256()
                                                     .hashString(String.valueOf(id) + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString(), StandardCharsets.UTF_8)
@@ -328,6 +328,7 @@ public class ApiController {
                                                 .hashString(String.valueOf(id) + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString(), StandardCharsets.UTF_8)
                                                 .toString();
 
+                                        scancode = new Scancode();
                                         scancode.setSubjectId(schedule.getSubjectId());
                                         scancode.setScheduleId(schedule.getId());
                                         scancode.setCode(qrString);
@@ -477,55 +478,63 @@ public class ApiController {
 
                             //check if the date and time at scan is valid
                             if(scancode.get().getCreationDate().equals(currentDate) && timeStartDifference > 0 && timeStopDifference < 0) {
-                                try {
-                                    //check if the student year grade specialization match
-                                    Optional<Schedule> schedule = scheduleRepo.findById(scancode.get().getScheduleId());
-                                    if(schedule.isPresent()) {
 
-                                        try {
-                                            Optional<Subject> subject = subjectRepo.findById(schedule.get().getSubjectId());
-                                            if(subject.isPresent()) {
-                                                if(student.get().getSpec() == subject.get().getSpec() && student.get().getGrade() == subject.get().getGrade()) {
-                                                    if(schedule.get().getStudentGrup() == student.get().getGrup() || schedule.get().getStudentGrup() == 0) {
+                                //mark code as invalid if it didn't refresh; this is in case the professor hasn't refreshed the code
+                                long timeDifference = currentTime.getTime() - scancode.get().getTimeGenerated().getTime();
+                                if(timeDifference < Constants.CODE_DURATION) {
+                                    try {
+                                        //check if the student year grade specialization match
+                                        Optional<Schedule> schedule = scheduleRepo.findById(scancode.get().getScheduleId());
+                                        if(schedule.isPresent()) {
 
-                                                        Attendance attendance = new Attendance();
-                                                        attendance.setStudentId(id);
-                                                        attendance.setScheduleId(scancode.get().getScheduleId());
-                                                        attendance.setSubjectId(subject.get().getId());
-                                                        attendance.setScanDate(currentDate);
-                                                        attendance.setScanTime(currentTime);
-                                                        try {
-                                                            attendanceRepo.save(attendance);
+                                            try {
+                                                Optional<Subject> subject = subjectRepo.findById(schedule.get().getSubjectId());
+                                                if(subject.isPresent()) {
+                                                    if(student.get().getSpec() == subject.get().getSpec() && student.get().getGrade() == subject.get().getGrade()) {
+                                                        if(schedule.get().getStudentGrup() == student.get().getGrup() || schedule.get().getStudentGrup() == 0) {
+
+                                                            Attendance attendance = new Attendance();
+                                                            attendance.setStudentId(id);
+                                                            attendance.setScheduleId(scancode.get().getScheduleId());
+                                                            attendance.setSubjectId(subject.get().getId());
+                                                            attendance.setScanDate(currentDate);
+                                                            attendance.setScanTime(currentTime);
+                                                            try {
+                                                                attendanceRepo.save(attendance);
+                                                            }
+                                                            catch (Exception ex) {
+                                                                return new QrCodeResponse(-1, 0, "Error during request.", "", 0);
+                                                            }
+
+                                                            System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
+                                                            return new QrCodeResponse(2, 0, "You're now attending!", "", 0);
                                                         }
-                                                        catch (Exception ex) {
-                                                            return new QrCodeResponse(-1, 0, "Error during request.", "", 0);
+                                                        else {
+                                                            return new QrCodeResponse(1, 0, "Invalid QR Code.", "", 0);
                                                         }
-
-                                                        System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
-                                                        return new QrCodeResponse(2, 0, "You're now attending!", "", 0);
                                                     }
                                                     else {
                                                         return new QrCodeResponse(1, 0, "Invalid QR Code.", "", 0);
                                                     }
                                                 }
-                                                else {
-                                                    return new QrCodeResponse(1, 0, "Invalid QR Code.", "", 0);
+                                                else { //impossible error
+                                                    return new QrCodeResponse(0, 0, "", "", 0);
                                                 }
                                             }
-                                            else { //impossible error
-                                                return new QrCodeResponse(0, 0, "", "", 0);
+                                            catch (Exception ex) {
+                                                return new QrCodeResponse(-1, 0, "Error during request.", "", 0);
                                             }
                                         }
-                                        catch (Exception ex) {
-                                            return new QrCodeResponse(-1, 0, "Error during request.", "", 0);
+                                        else { //impossible error
+                                            return new QrCodeResponse(0, 0, "", "", 0);
                                         }
                                     }
-                                    else { //impossible error
-                                        return new QrCodeResponse(0, 0, "", "", 0);
+                                    catch (Exception ex) {
+                                        return new QrCodeResponse(-1, 0, "Error during request.", "", 0);
                                     }
                                 }
-                                catch (Exception ex) {
-                                    return new QrCodeResponse(-1, 0, "Error during request.", "", 0);
+                                else {
+                                    return new QrCodeResponse(1, 0, "The code has expired.", "", 0);
                                 }
                             }
                             else {
