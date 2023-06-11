@@ -5,6 +5,36 @@
     <title>Add Student - SmartAttendance</title>
 </head>
 <body>
-
+    <h1>Add Student</h1>
+    <form th:action="@{/addStudent}" th:object="${addStudentForm}" method="post">
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="firstName">
+        <br>
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="lastName">
+        <br>
+        <label for="cnp">CNP</label>
+        <input type="number" id="cnp" name="cnp">
+        <br>
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password">
+        <br>
+        <label for="specialization">Specialization</label>
+        <select id="specialization" name="specialization">
+            <option value="0">Select an option</option>
+            <option th:each="spec : ${specList}" th:value="${spec.id}" th:text="${spec.name}"></option>
+        </select>
+        <br>
+        <label for="grade">Grade</label>
+        <input type="number" id="grade" name="grade" min="1" value="1">
+        <br>
+        <label for="grup">Group</label>
+        <input type="number" id="grup" name="grup" min="1" value="1">
+        <br>
+        <input type="submit" value="Add Student">
+        <p th:if="${addStudentFormError}" th:text="${addStudentFormError}"></p>
+    </form>
+    <br>
+    <a th:href="@{/index}">Go Back</a>
 </body>
 </html>

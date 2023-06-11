@@ -5,6 +5,46 @@
     <title>Add Subject - SmartAttendance</title>
 </head>
 <body>
-
+    <h1>Add User</h1>
+    <form th:action="@{/addSubject}" th:object="${addSubjectForm}" method="post">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name">
+        <br>
+        <label for="specialization">Specialization</label>
+        <select id="specialization" name="specialization">
+            <option value="0">Select an option</option>
+            <option th:each="spec : ${specList}" th:value="${spec.id}" th:text="${spec.name}"></option>
+        </select>
+        <br>
+        <label for="grade">Grade</label>
+        <input type="number" id="grade" name="grade" min="1" value="1">
+        <br>
+        <label for="type">Type</label>
+        <select id="type" name="type">
+            <option value="none">Select an option</option>
+            <option value="course">Course</option>
+            <option value="laboratory">Laboratory</option>
+            <option value="seminary">Seminary</option>
+            <option value="project">Project</option>
+        </select>
+        <br>
+        <label for="semester">Semester</label>
+        <select id="semester" name="semester">
+            <option value="0">Select an option</option>
+            <option value="1">Semester 1</option>
+            <option value="2">Semester 2</option>
+        </select>
+        <br>
+        <label for="attendanceTotal">Total Attendance</label>
+        <input type="number" id="attendanceTotal" name="attendanceTotal" min="1" value="1">
+        <br>
+        <label for="absencesAllowed">Allowed Absences</label>
+        <input type="number" id="absencesAllowed" name="absencesAllowed" min="0" value="0">
+        <br>
+        <input type="submit" value="Add Subject">
+        <p th:if="${addSubjectFormError}" th:text="${addSubjectFormError}"></p>
+    </form>
+    <br>
+    <a th:href="@{/index}">Go Back</a>
 </body>
 </html>
