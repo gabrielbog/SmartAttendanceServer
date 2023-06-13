@@ -5,6 +5,51 @@
     <title>Add Schedule - SmartAttendance</title>
 </head>
 <body>
-
+    <h1>Add Schedule</h1>
+    <br>
+    <h1>NOTE: This form only checks the selected professor's schedule.</h1>
+    <h1>Please consult the official schedules first.</h1>
+    <form th:action="@{/addSchedule}" th:object="${addScheduleForm}" method="post">
+        <label for="subject">Subject</label>
+        <select id="subject" name="subject">
+            <option value="0">Select an option</option>
+            <option th:each="subject : ${subjectList}" th:value="${subject.id}" th:text="${subject.name}"></option>
+        </select>
+        <br>
+        <label for="professor">Professor</label>
+        <select id="professor" name="professor">
+            <option value="0">Select an option</option>
+            <option th:each="professor : ${professorList}" th:value="${professor.id}" th:text="${professor.lastName + ' ' + professor.firstName}"></option>
+        </select>
+        <br>
+        <label for="timeStart">Start Time</label>
+        <input type="time" id="timeStart" name="timeStart" min="08:00" value="20:00">
+        <br>
+        <label for="timeStop">Stop Time</label>
+        <input type="time" id="timeStop" name="timeStop" min="08:00" value="20:00">
+        <br>
+        <label for="weekday">Weekday</label>
+        <select id="weekday" name="weekday">
+            <option value="-1">Select an option</option>
+            <option value="1">Monday</option>
+            <option value="2">Tuesday</option>
+            <option value="3">Wednesday</option>
+            <option value="4">Thursday</option>
+            <option value="5">Friday</option>
+            <option value="6">Saturday</option>
+            <option value="0">Sunday</option>
+        </select>
+        <br>
+        <label for="grup">Group</label>
+        <input type="number" id="grup" name="grup" min="1" value="1">
+        <br>
+        <label for="room">Room</label>
+        <input type="text" id="room" name="room">
+        <br>
+        <input type="submit" value="Add Schedule">
+        <p th:if="${addScheduleFormError}" th:text="${addScheduleFormError}"></p>
+    </form>
+    <br>
+    <a th:href="@{/index}">Go Back</a>
 </body>
 </html>

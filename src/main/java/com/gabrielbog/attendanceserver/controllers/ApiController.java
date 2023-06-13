@@ -48,22 +48,6 @@ public class ApiController {
     /*
         users
     */
-    @GetMapping("/getAllUsers")
-    public List<User> getAllUsers() {
-        try {
-            List<User> userList = new ArrayList<>();
-            userRepo.findAll().forEach(userList::add);
-
-            if (userList.isEmpty()) {
-                return null;
-            }
-
-            return userList;
-        }
-        catch(Exception ex) {
-            return null;
-        }
-    }
 
     @GetMapping("/getUserByCnpAndPassword/{cnp}&{password}")
     public LogInResponse getUserByCnpAndPassword(@PathVariable String cnp, @PathVariable String password) {
@@ -109,131 +93,6 @@ public class ApiController {
         }
         catch(Exception ex) {
             return new LogInResponse(-1, 0, 0, "Error during request", "");
-        }
-    }
-
-    /*
-        students
-    */
-
-    @GetMapping("/getAllStudents")
-    public List<Student> getAllStudents() {
-        try {
-            List<Student> studList = new ArrayList<>();
-            studentRepo.findAll().forEach(studList::add);
-
-            if (studList.isEmpty()) {
-                return null;
-            }
-
-            return studList;
-        }
-        catch(Exception ex) {
-            return null;
-        }
-    }
-
-    @PostMapping("/addStudent")
-    public int addStudent(@RequestBody Student student) {
-        try {
-            Optional<User> user = userRepo.findById(student.getUserId());
-            if (user.isPresent()) {
-                if(user.get().getIsAdmin() != 1) { //save student if not professor
-                    try {
-                        studentRepo.save(student);
-                        return 2;
-                    }
-                    catch (Exception e) {
-                        return -1;
-                    }
-                }
-                else { //don't add anything if user is admin/professor in the user table
-                    return 1;
-                }
-            }
-            else {  //don't add anything if user doesn't exist in the user table
-                return 0;
-            }
-        }
-        catch (Exception ex) {
-            return -1;
-        }
-    }
-
-    @DeleteMapping("/deleteStudentById/{id}")
-    public int deleteStudent(@PathVariable int id) {
-        try {
-            studentRepo.deleteById(id);
-            return 1;
-        }
-        catch (Exception ex) {
-            return 0;
-        }
-    }
-
-    /*
-        specializations
-    */
-
-    @PostMapping("/addSpecialization")
-    public int addSpecialization(@RequestBody Specialization specialization) {
-        try {
-            specialzationRepo.save(specialization);
-            return 1;
-        }
-        catch (Exception ex) {
-            return 0;
-        }
-    }
-
-    /*
-        subjects
-    */
-
-    @GetMapping("/getAllSubjects")
-    public List<Subject> getAllSubjects() {
-        try {
-            List<Subject> subjectList = new ArrayList<>();
-            subjectRepo.findAll().forEach(subjectList::add);
-
-            if (subjectList.isEmpty()) {
-                return null;
-            }
-
-            return subjectList;
-        }
-        catch(Exception ex) {
-            return null;
-        }
-    }
-
-    @PostMapping("/addSubject")
-    public int addSubject(@RequestBody Subject subject) {
-        try {
-            subjectRepo.save(subject);
-            return 1;
-        }
-        catch (Exception ex) {
-            return 0;
-        }
-    }
-
-    /*
-        scancode
-    */
-    @GetMapping("/getScancodeByCode/{code}")
-    public Scancode getScancodeByCode(@PathVariable String code) {
-        try {
-            Optional<Scancode> scancode = scancodeRepo.findByCode(code);
-            if(scancode.isPresent()) {
-                return scancode.get();
-            }
-            else {
-                return null;
-            }
-        }
-        catch(Exception ex) {
-            return null;
         }
     }
 
@@ -563,27 +422,8 @@ public class ApiController {
     }
 
     /*
-        @GetMapping("/refreshQrCode/{id}&{code}")
-        public QrCodeResponse refreshQrCode(@PathVariable int id, @PathVariable String code) {
-            //check if date and time are still valid, if not, return error code and remove qr code in-app
-            //else search for code, if exists, make new hash like at generation, but change the table entry instead
-        }
-    */
-
-    /*
         schedules
     */
-
-    @PostMapping("/addSchedule")
-    public int addSchedule(@RequestBody Schedule schedule) {
-        try {
-            scheduleRepo.save(schedule);
-            return 1;
-        }
-        catch (Exception ex) {
-            return 0;
-        }
-    }
 
     @GetMapping("/getSubjectList/{id}")
     public SubjectListResponse getSubjectList(@PathVariable int id) {
@@ -626,7 +466,6 @@ public class ApiController {
                             }
                         }
 
-                        //sort it alphabetically
                         response.setCode(1);
                         response.setSubjectList(subjectList);
                         return response;
@@ -644,7 +483,6 @@ public class ApiController {
 
                             try {
                                 subjectRepo.findBySpecAndGrade(student.get().getSpec(), student.get().getGrade()).forEach(subjectList::add); //build list with student year and grade subjects
-                                //sort it alphabetically
                                 response.setCode(1);
                                 response.setSubjectList(subjectList);
                                 return response;

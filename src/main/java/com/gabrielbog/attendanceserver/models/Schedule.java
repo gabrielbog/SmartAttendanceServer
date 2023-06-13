@@ -39,9 +39,6 @@ public class Schedule {
     private int weekday; //0 - Sunday, 6 - Saturday
 
     @Column
-    private int studentGrade; //student year - can be removed, useless
-
-    @Column
     private int studentGrup; //student group; 0 - all groups
 
     @Column
