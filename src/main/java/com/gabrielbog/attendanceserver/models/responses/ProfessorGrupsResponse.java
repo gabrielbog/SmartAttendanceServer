@@ -5,10 +5,7 @@ import lombok.*;
 import java.util.List;
 
 @NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Setter
-@ToString
+@Data
 public class ProfessorGrupsResponse {
     private int code;
     private List<ProfessorGrups> professorGrupsList;

@@ -1,20 +1,13 @@
 package com.gabrielbog.attendanceserver.models;
 
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import jakarta.persistence.*;
 
 @Entity
 @Table(name="Specializations")
 @NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Setter
-@ToString
+@Data
 public class Specialization {
 
     @Id
@@ -25,5 +18,5 @@ public class Specialization {
     private String name;
 
     @Column
-    private int maxYears; //how many years the specialization has
+    private int maxYears;
 }

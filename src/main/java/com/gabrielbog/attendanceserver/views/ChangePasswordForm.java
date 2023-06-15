@@ -4,9 +4,7 @@ import lombok.*;
 
 @NoArgsConstructor
 @Data
-public class AddUserForm {
-    private String firstName;
-    private String lastName;
+public class ChangePasswordForm {
     private String cnp;
     private String password;
 }

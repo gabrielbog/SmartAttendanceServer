@@ -1,10 +1,6 @@
 package com.gabrielbog.attendanceserver.models;
 
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import jakarta.persistence.*;
 
@@ -14,10 +10,7 @@ import java.sql.Date;
 @Entity
 @Table(name="Attendance")
 @NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Setter
-@ToString
+@Data
 public class Attendance {
 
     @Id

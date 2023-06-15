@@ -6,10 +6,7 @@ import lombok.*;
 import java.util.List;
 
 @NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Setter
-@ToString
+@Data
 public class SubjectListResponse {
     private int code;
     private List<Subject> subjectList;

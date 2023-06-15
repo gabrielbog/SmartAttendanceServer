@@ -2,11 +2,8 @@ package com.gabrielbog.attendanceserver.models.responses;
 
 import lombok.*;
 
-@NoArgsConstructor
 @AllArgsConstructor
-@Setter
-@Getter
-@ToString
+@Data
 public class LogInResponse {
     private int code;
     private int id;

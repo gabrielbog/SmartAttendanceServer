@@ -49,8 +49,8 @@ public class ApiController {
         users
     */
 
-    @GetMapping("/getUserByCnpAndPassword/{cnp}&{password}")
-    public LogInResponse getUserByCnpAndPassword(@PathVariable String cnp, @PathVariable String password) {
+    @GetMapping("/checkUserExistence/{cnp}&{password}")
+    public LogInResponse checkUserExistence(@PathVariable String cnp, @PathVariable String password) {
         //might be a good idea to find only by cnp, then compare passwords by code
         try {
             Optional<User> user = userRepo.findByCnp(cnp);
@@ -258,6 +258,8 @@ public class ApiController {
                     try {
                         Optional<Scancode> scancode = scancodeRepo.findByCode(code);
                         if (scancode.isPresent()) {
+                            //check creation dates!
+                            //check IDs of professors that attend the schedule!
 
                             int timeStartDifference = currentTime.compareTo(scancode.get().getTimeStart()); //timeStartDifference > 0 - currentTime comes after timeStart; < 0 - currentTime comes before timeStart
                             int timeStopDifference = currentTime.compareTo(scancode.get().getTimeStop());

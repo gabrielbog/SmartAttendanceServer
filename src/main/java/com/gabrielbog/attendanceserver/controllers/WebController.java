@@ -7,7 +7,6 @@ import com.gabrielbog.attendanceserver.views.*;
 import com.google.common.hash.Hashing;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cglib.core.Local;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -26,7 +25,7 @@ public class WebController {
 
     //Variables
     @Autowired
-    private Environment env;
+    Environment env;
 
     //Database Access
     @Autowired
@@ -638,6 +637,62 @@ public class WebController {
         catch(Exception ex) {
             model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
             return "addAttendance";
+        }
+    }
+
+    /*
+        Change Password
+    */
+    @GetMapping("/changePassword")
+    public String getChangePasswordPage(HttpSession session) {
+        if (session.getAttribute("status") == null) {
+            return "redirect:/index";
+        }
+        return "changePassword";
+    }
+
+    @PostMapping("/changePassword")
+    public String changePassword(@ModelAttribute("changePasswordForm") ChangePasswordForm changePasswordForm, Model model, HttpSession session) {
+
+        if (session.getAttribute("status") == null) {
+            return "redirect:/login";
+        }
+
+        String cnp = changePasswordForm.getCnp();
+        String password = changePasswordForm.getPassword();
+
+        if (cnp.length() == 0 || password.length() == 0) {
+            model.addAttribute("changePasswordFormError", "Please fill in all the boxes.");
+            return "changePassword";
+        }
+
+        if (cnp.length() != Constants.CNP_LENGTH) {
+            model.addAttribute("changePasswordFormError", "CNP is too short.");
+            return "changePassword";
+        }
+
+        try {
+            Optional<User> user = userRepo.findByCnp(cnp);
+            if (user.isPresent()) {
+
+                try {
+                    user.get().setPassword(Hashing.sha256().hashString(password, StandardCharsets.UTF_8).toString());
+                    userRepo.save(user.get());
+                    return "redirect:/index"; //redirect to list of users when said page is implemented
+                }
+                catch(Exception ex) {
+                    model.addAttribute("changePasswordFormError", "An error has occurred. Please try again.");
+                    return "changePassword";
+                }
+            }
+            else {
+                model.addAttribute("changePasswordFormError", "User with CNP does not exist.");
+                return "changePassword";
+            }
+        }
+        catch (Exception ex) {
+            model.addAttribute("changePasswordFormError", "An error has occurred. Please try again.");
+            return "changePassword";
         }
     }
 }

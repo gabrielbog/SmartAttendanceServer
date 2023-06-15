@@ -1,10 +1,6 @@
 package com.gabrielbog.attendanceserver.models;
 
-import lombok.NoArgsConstructor;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import lombok.*;
 
 import jakarta.persistence.*;
 
@@ -13,10 +9,7 @@ import java.sql.Time;
 @Entity
 @Table(name="Schedules")
 @NoArgsConstructor
-@AllArgsConstructor
-@Getter
-@Setter
-@ToString
+@Data
 public class Schedule {
 
     @Id

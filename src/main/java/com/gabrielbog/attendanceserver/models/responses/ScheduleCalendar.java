@@ -5,11 +5,8 @@ import java.sql.Time;
 
 import lombok.*;
 
-@NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
-@ToString
+@Data
 public class ScheduleCalendar {
 
     private int id; //schedule id
@@ -17,27 +14,4 @@ public class ScheduleCalendar {
     private Time timeStart;
     private Time timeStop;
     private int grup;
-
-    public int compareTo(ScheduleCalendar other) {
-        //compare by date
-        int dateCompare = this.date.compareTo(other.date);
-        if (dateCompare != 0) {
-            return dateCompare;
-        }
-
-        //compare by start time
-        int timeStartCompare = this.timeStart.compareTo(other.timeStart);
-        if (timeStartCompare != 0) {
-            return timeStartCompare;
-        }
-
-        //compare by stop time
-        int timeStopCompare = this.timeStop.compareTo(other.timeStop);
-        if (timeStopCompare != 0) {
-            return timeStopCompare;
-        }
-
-        //compare by grup
-        return Integer.compare(this.grup, other.grup);
-    }
 }

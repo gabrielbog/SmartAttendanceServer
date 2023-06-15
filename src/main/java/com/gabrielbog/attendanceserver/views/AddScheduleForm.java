@@ -3,8 +3,7 @@ package com.gabrielbog.attendanceserver.views;
 import lombok.*;
 
 @NoArgsConstructor
-@Getter
-@Setter
+@Data
 public class AddScheduleForm {
     private String subject;
     private String professor;

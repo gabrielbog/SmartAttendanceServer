@@ -2,11 +2,8 @@ package com.gabrielbog.attendanceserver.models.responses;
 
 import lombok.*;
 
-@NoArgsConstructor
 @AllArgsConstructor
-@Getter
-@Setter
-@ToString
+@Data
 public class ProfessorGrups {
     int grup; //this class exists for list clarity when using Postman
 
