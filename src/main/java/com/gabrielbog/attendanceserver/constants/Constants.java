@@ -1,4 +1,4 @@
-package com.gabrielbog.attendanceserver;
+package com.gabrielbog.attendanceserver.constants;
 
 public class Constants {
     public static final int CNP_LENGTH = 13;

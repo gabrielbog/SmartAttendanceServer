@@ -1,5 +1,6 @@
 package com.gabrielbog.attendanceserver.models;
 
+import com.gabrielbog.attendanceserver.models.responses.ProfessorGrups;
 import lombok.*;
 
 import jakarta.persistence.*;
@@ -28,5 +29,13 @@ public class User {
 
     @Column
     private String lastName;
+
+    public int compareByName(User other) {
+        int lastNamDiff = this.lastName.compareTo(other.lastName);
+        if (lastNamDiff != 0) {
+            return lastNamDiff;
+        }
+        return this.firstName.compareTo(other.firstName);
+    }
 
 }

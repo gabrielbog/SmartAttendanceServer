@@ -1,13 +1,12 @@
 package com.gabrielbog.attendanceserver.controllers;
 
-import com.gabrielbog.attendanceserver.Constants;
+import com.gabrielbog.attendanceserver.constants.Constants;
 import com.gabrielbog.attendanceserver.AttendanceCalendar;
 import com.gabrielbog.attendanceserver.models.*;
 import com.gabrielbog.attendanceserver.models.responses.*;
 import com.gabrielbog.attendanceserver.repositories.*;
 import com.google.common.hash.Hashing;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cglib.core.Local;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -64,12 +63,12 @@ public class ApiController {
                         try {
                             Optional<Student> student = studentRepo.findByUserId(user.get().getId());
                             if(student.isPresent()) {
-                                System.out.println("[" + date.toString() + " " + time.toString() + "] Student " + user.get().getCnp() + " logged in"); //debug
+                                //System.out.println("[" + date.toString() + " " + time.toString() + "] Student " + user.get().getCnp() + " logged in"); //debug
                                 return new LogInResponse(1, user.get().getId(), user.get().getIsAdmin(), user.get().getFirstName(), user.get().getLastName());
                             }
                             else {
                                 //invalid user - might be a good idea to store this in a log on the server
-                                System.out.println("[" + date.toString() + " " + time.toString() + "] !!! STUDENT " + user.get().getCnp() + " HAS NO STUDENT TABLE ENTRY !!!"); //debug
+                                //System.out.println("[" + date.toString() + " " + time.toString() + "] !!! STUDENT " + user.get().getCnp() + " HAS NO STUDENT TABLE ENTRY !!!"); //debug
                                 return new LogInResponse(0, 0, 0, "", "");
                             }
                         }
@@ -79,7 +78,7 @@ public class ApiController {
                     }
                     else {
                         //return professor response
-                        System.out.println("[" + date.toString() + " " + time.toString() + "] Professor " + user.get().getCnp() + " logged in"); //debug
+                        //System.out.println("[" + date.toString() + " " + time.toString() + "] Professor " + user.get().getCnp() + " logged in"); //debug
                         return new LogInResponse(1, user.get().getId(), user.get().getIsAdmin(), user.get().getFirstName(), user.get().getLastName());
                     }
                 }
@@ -115,7 +114,7 @@ public class ApiController {
                     try {
 
                         List<Schedule> scheduleList = new ArrayList<>();
-                        scheduleRepo.findByProfessorId(id).forEach(scheduleList::add);
+                        scheduleList = scheduleRepo.findByProfessorId(id);
 
                         for(Schedule schedule : scheduleList) {
 
@@ -123,7 +122,7 @@ public class ApiController {
                             int timeStopDifference = currentTime.compareTo(schedule.getTimeStop());
 
                             //check if the schedule found is right for this time
-                            if(schedule.getWeekday() == currentDate.getDayOfWeek().getValue() && timeStartDifference > 0 && timeStopDifference < 0) {
+                            if(schedule.getWeekday() == currentDate.getDayOfWeek().getValue() && timeStartDifference >= 0 && timeStopDifference <= 0) {
 
                                 try {
 
@@ -133,7 +132,7 @@ public class ApiController {
 
                                         scancode = existingScancode.get();
                                         long timeDifference = currentTime.getTime() - scancode.getTimeGenerated().getTime();
-                                        System.out.println(timeDifference);
+                                        //System.out.println(timeDifference);
                                         if(timeDifference >= Constants.CODE_DURATION) { //is the code older than it's supossed to?
 
                                             String qrString = Hashing.sha256()
@@ -152,11 +151,11 @@ public class ApiController {
                                             try {
                                                 Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
                                                 if(subject.isPresent()) {
-                                                    System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
+                                                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
                                                     return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, subject.get().getName(), schedule.getStudentGrup());
                                                 }
                                                 else { //impossible condition
-                                                    System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
+                                                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
                                                     return new QrCodeResponse(2, 0, qrString, "", 0);
                                                 }
                                             }
@@ -169,11 +168,11 @@ public class ApiController {
                                             try {
                                                 Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
                                                 if(subject.isPresent()) {
-                                                    System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " requested code: " + existingScancode.get().getCode()); //debug
+                                                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " requested code: " + existingScancode.get().getCode()); //debug
                                                     return new QrCodeResponse(2, Constants.CODE_DURATION - timeDifference, existingScancode.get().getCode(), subject.get().getName(), schedule.getStudentGrup());
                                                 }
                                                 else { //impossible condition
-                                                    System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " requested code: " + existingScancode.get().getCode()); //debug
+                                                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " requested code: " + existingScancode.get().getCode()); //debug
                                                     return new QrCodeResponse(2, 0, existingScancode.get().getCode(), "", 0);
                                                 }
                                             }
@@ -206,11 +205,11 @@ public class ApiController {
                                         try {
                                             Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
                                             if(subject.isPresent()) {
-                                                System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " generated code: " + qrString); //debug
+                                                //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " generated code: " + qrString); //debug
                                                 return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, subject.get().getName(), schedule.getStudentGrup());
                                             }
                                             else { //impossible condition
-                                                System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " generated code: " + qrString); //debug
+                                                //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " generated code: " + qrString); //debug
                                                 return new QrCodeResponse(2, 0, qrString, "", 0);
                                             }
                                         }
@@ -232,7 +231,7 @@ public class ApiController {
                     }
                 }
                 else {
-                    System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] !!! STUDENT " + user.get().getCnp() + " TRIED TO GENERATE QR CODE !!!"); //debug
+                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] !!! STUDENT " + user.get().getCnp() + " TRIED TO GENERATE QR CODE !!!"); //debug
                     return new QrCodeResponse(1, 0, "", "", 0); //request from non-professor
                 }
             }
@@ -258,31 +257,48 @@ public class ApiController {
                     try {
                         Optional<Scancode> scancode = scancodeRepo.findByCode(code);
                         if (scancode.isPresent()) {
-                            //check creation dates!
-                            //check IDs of professors that attend the schedule!
-
-                            int timeStartDifference = currentTime.compareTo(scancode.get().getTimeStart()); //timeStartDifference > 0 - currentTime comes after timeStart; < 0 - currentTime comes before timeStart
-                            int timeStopDifference = currentTime.compareTo(scancode.get().getTimeStop());
-
-                            if(timeStartDifference > 0 && timeStopDifference < 0) {
-                                String qrString = Hashing.sha256()
-                                        .hashString(String.valueOf(id) + user.get().getFirstName() + scancode.get().getScheduleId() + currentDate.toString() + " " + currentTime.toString(), StandardCharsets.UTF_8)
-                                        .toString();
-                                scancode.get().setCode(qrString);
-                                scancode.get().setTimeGenerated(currentTime);
-
-                                try {
-                                    scancodeRepo.save(scancode.get());
-                                }
-                                catch (Exception ex) {
-                                    return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
-                                }
-
-                                System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
-                                return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, "", 0); //returning subjectString and grup is pointless, mobile app is supposed to have it already
-                            }
-                            else {
+                            if(!scancode.get().getCreationDate().equals(currentDate)) {
                                 return new QrCodeResponse(3, 0, "The schedule has finished.", "", 0);
+                            }
+
+                            try {
+                                Optional<Schedule> schedule = scheduleRepo.findById(scancode.get().getScheduleId());
+                                if(schedule.isPresent()) {
+                                    if(schedule.get().getProfessorId() == id) {
+                                        int timeStartDifference = currentTime.compareTo(scancode.get().getTimeStart()); //timeStartDifference > 0 - currentTime comes after timeStart; < 0 - currentTime comes before timeStart
+                                        int timeStopDifference = currentTime.compareTo(scancode.get().getTimeStop());
+
+                                        if(timeStartDifference >= 0 && timeStopDifference <= 0) {
+                                            String qrString = Hashing.sha256()
+                                                    .hashString(String.valueOf(id) + user.get().getFirstName() + scancode.get().getScheduleId() + currentDate.toString() + " " + currentTime.toString(), StandardCharsets.UTF_8)
+                                                    .toString();
+                                            scancode.get().setCode(qrString);
+                                            scancode.get().setTimeGenerated(currentTime);
+
+                                            try {
+                                                scancodeRepo.save(scancode.get());
+                                            }
+                                            catch (Exception ex) {
+                                                return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
+                                            }
+
+                                            //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
+                                            return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, "", 0); //returning subjectString and grup is pointless, mobile app is supposed to have it already
+                                        }
+                                        else {
+                                            return new QrCodeResponse(3, 0, "The schedule has finished.", "", 0);
+                                        }
+                                    }
+                                    else {
+                                        return new QrCodeResponse(0, 0, "", "", 0);
+                                    }
+                                }
+                                else { //impossible request
+                                    return new QrCodeResponse(0, 0, "", "", 0);
+                                }
+                            }
+                            catch (Exception ex) {
+                                return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
                             }
                         }
                         else { //impossible request
@@ -294,7 +310,7 @@ public class ApiController {
                     }
                 }
                 else {
-                    System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] !!! STUDENT " + user.get().getCnp() + " TRIED TO GENERATE QR CODE !!!"); //debug
+                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] !!! STUDENT " + user.get().getCnp() + " TRIED TO GENERATE QR CODE !!!"); //debug
                     return new QrCodeResponse(1, 0, "", "", 0); //request from non-professor
                 }
             }
@@ -313,8 +329,6 @@ public class ApiController {
         Date currentDate = Date.valueOf(LocalDate.now());
         Time currentTime = Time.valueOf(LocalTime.now());
 
-        System.out.println(id + " " + code); //debug
-
         try {
             Optional<Student> student = studentRepo.findByUserId(id);
             if (student.isPresent()) {
@@ -326,7 +340,7 @@ public class ApiController {
                         try {
 
                             List<Attendance> attendanceList = new ArrayList<>();
-                            attendanceRepo.findByScanDate(currentDate).forEach(attendanceList::add);
+                            attendanceList = attendanceRepo.findByScanDate(currentDate);
 
                             for(Attendance attendance : attendanceList) {
                                 if(attendance.getStudentId() == id && attendance.getScheduleId() == scancode.get().getScheduleId()) { //stop if user already scanned this code once
@@ -338,7 +352,7 @@ public class ApiController {
                             int timeStopDifference = currentTime.compareTo(scancode.get().getTimeStop());
 
                             //check if the date and time at scan is valid
-                            if(scancode.get().getCreationDate().equals(currentDate) && timeStartDifference > 0 && timeStopDifference < 0) {
+                            if(scancode.get().getCreationDate().equals(currentDate) && timeStartDifference >= 0 && timeStopDifference <= 0) {
 
                                 //mark code as invalid if it didn't refresh; this is in case the professor hasn't refreshed the code
                                 long timeDifference = currentTime.getTime() - scancode.get().getTimeGenerated().getTime();
@@ -367,7 +381,7 @@ public class ApiController {
                                                                 return new QrCodeResponse(-1, 0, "Error during request.", "", 0);
                                                             }
 
-                                                            System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
+                                                            //System.out.println("[" + timestamp.toString() + "] Student " + student.get().getUserId() + " scanned code successfully"); //debug
                                                             return new QrCodeResponse(2, 0, "You're now attending!", "", 0);
                                                         }
                                                         else {
@@ -442,7 +456,7 @@ public class ApiController {
                     try {
                         //try catch
                         List<Schedule> scheduleList = new ArrayList<>();
-                        scheduleRepo.findByProfessorId(user.get().getId()).forEach(scheduleList::add);
+                        scheduleList = scheduleRepo.findByProfessorId(user.get().getId());
                         int duplicateFound = 0;
 
                         for(Schedule scheduleElement : scheduleList) {
@@ -484,7 +498,7 @@ public class ApiController {
                         if(student.isPresent()) {
 
                             try {
-                                subjectRepo.findBySpecAndGrade(student.get().getSpec(), student.get().getGrade()).forEach(subjectList::add); //build list with student year and grade subjects
+                                subjectList = subjectRepo.findBySpecAndGrade(student.get().getSpec(), student.get().getGrade()); //build list with student year and grade subjects
                                 response.setCode(1);
                                 response.setSubjectList(subjectList);
                                 return response;
@@ -544,7 +558,7 @@ public class ApiController {
                     LocalDate nextDate = startLocalDate;
 
                     List<Schedule> scheduleList = new ArrayList<>();
-                    scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId).forEach(scheduleList::add);
+                    scheduleList = scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId);
 
                     while (nextDate.isBefore(endLocalDate)) { //iterates through all days
                         for(Schedule schedule : scheduleList) {
@@ -590,10 +604,25 @@ public class ApiController {
                     if(subject.isPresent()) {
                         try {
                             List<Student> studentList = new ArrayList<>();
-                            studentRepo.findByGradeAndSpec(subject.get().getGrade(), subject.get().getSpec()).forEach(studentList::add);
+                            List<Student> tempStudentList = new ArrayList<>();
+                            studentList = studentRepo.findByGradeAndSpec(subject.get().getGrade(), subject.get().getSpec());
+
+                            List<User> userList = new ArrayList<>(); //sort the student list by names
+                            userList = userRepo.findByIsAdmin(0);
+                            userList.sort(User::compareByName);
+                            for(User user : userList) {
+                                for(Student student : studentList) {
+                                    if(user.getId() == student.getUserId()) {
+                                        tempStudentList.add(student);
+                                        break;
+                                    }
+                                }
+                            }
+                            studentList = tempStudentList;
+
                             try {
                                 List<Attendance> attendanceList = new ArrayList<>();
-                                attendanceRepo.findByScanDateAndScheduleId(scanDate, scheduleId).forEach(attendanceList::add);
+                                attendanceList = attendanceRepo.findByScanDateAndScheduleId(scanDate, scheduleId);
                                 for(Student student : studentList) {
                                     try {
                                         Optional<User> user = userRepo.findById(student.getUserId());
@@ -664,7 +693,7 @@ public class ApiController {
 
         try {
             List<Schedule> scheduleList = new ArrayList<>();
-            scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId).forEach(scheduleList::add);
+            scheduleList = scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId);
             for(Schedule schedule : scheduleList) {
                 int grupFound = 0;
                 for(ProfessorGrups professorGrups : professorGrupsList) {
@@ -700,7 +729,21 @@ public class ApiController {
             if(subject.isPresent()) {
                 try {
                     List<Student> studentList = new ArrayList<>();
-                    studentRepo.findByGradeAndSpec(subject.get().getGrade(), subject.get().getSpec()).forEach(studentList::add);
+                    List<Student> tempStudentList = new ArrayList<>();
+                    studentList = studentRepo.findByGradeAndSpec(subject.get().getGrade(), subject.get().getSpec());
+
+                    List<User> userList = new ArrayList<>(); //sort the student list by names
+                    userList = userRepo.findByIsAdmin(0);
+                    userList.sort(User::compareByName);
+                    for(User user : userList) {
+                        for(Student student : studentList) {
+                            if(user.getId() == student.getUserId()) {
+                                tempStudentList.add(student);
+                                break;
+                            }
+                        }
+                    }
+                    studentList = tempStudentList;
                     try {
                         AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance(); //reads the calendar for the year and semester periods
 
@@ -720,7 +763,7 @@ public class ApiController {
                         LocalDate nextDate = startLocalDate;
 
                         List<Schedule> scheduleList = new ArrayList<>();
-                        scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId).forEach(scheduleList::add);
+                        scheduleList = scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId);
 
                         while (nextDate.isBefore(endLocalDate)) { //iterates through all days
                             for(Schedule schedule : scheduleList) {
@@ -728,7 +771,7 @@ public class ApiController {
 
                                     try {
                                         List<Attendance> attendanceList = new ArrayList<>();
-                                        attendanceRepo.findByScanDateAndScheduleId(Date.valueOf(nextDate), schedule.getId()).forEach(attendanceList::add);
+                                        attendanceList = attendanceRepo.findByScanDateAndScheduleId(Date.valueOf(nextDate), schedule.getId());
                                         for(Student student : studentList) {
                                             try {
                                                 Optional<User> user = userRepo.findById(student.getUserId());
@@ -819,9 +862,9 @@ public class ApiController {
                         try {
 
                             List<Attendance> attendanceList = new ArrayList<>();
-                            attendanceRepo.findByStudentIdAndSubjectId(studentId, subjectId).forEach(attendanceList::add); //this might not work, check out
+                            attendanceList = attendanceRepo.findByStudentIdAndSubjectId(studentId, subjectId);
                             List<Schedule> scheduleList = new ArrayList<>();
-                            scheduleRepo.findBySubjectId(subjectId).forEach(scheduleList::add);
+                            scheduleList = scheduleRepo.findBySubjectId(subjectId);
 
                             int completeCalendarCount = 0;
                             while (nextDate.isBefore(endLocalDate)) { //iterates through all days

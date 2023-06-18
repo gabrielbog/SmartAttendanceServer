@@ -1,6 +1,6 @@
 package com.gabrielbog.attendanceserver.controllers;
 
-import com.gabrielbog.attendanceserver.Constants;
+import com.gabrielbog.attendanceserver.constants.Constants;
 import com.gabrielbog.attendanceserver.models.*;
 import com.gabrielbog.attendanceserver.repositories.*;
 import com.gabrielbog.attendanceserver.views.*;
@@ -171,7 +171,7 @@ public class WebController {
 
         List<Specialization> specializationList = new ArrayList<>();
         try {
-            specialzationRepo.findAll().forEach(specializationList::add);
+            specializationList = specialzationRepo.findAll();
             model.addAttribute("specList", specializationList);
             return "addStudent";
         } catch (Exception ex) {
@@ -275,7 +275,7 @@ public class WebController {
 
         List<Specialization> specializationList = new ArrayList<>();
         try {
-            specialzationRepo.findAll().forEach(specializationList::add);
+            specializationList = specialzationRepo.findAll();
             model.addAttribute("specList", specializationList);
             return "addSubject";
         } catch (Exception ex) {
@@ -361,10 +361,10 @@ public class WebController {
         List<Subject> subjectList = new ArrayList<>();
         List<User> professorList = new ArrayList<>();
         try {
-            subjectRepo.findAll().forEach(subjectList::add);
+            subjectList = subjectRepo.findAll();
 
             try {
-                userRepo.findByIsAdmin(1).forEach(professorList::add);
+                professorList = userRepo.findByIsAdmin(1);
                 model.addAttribute("subjectList", subjectList);
                 model.addAttribute("professorList", professorList);
                 return "addSchedule";
@@ -422,7 +422,7 @@ public class WebController {
                 List<Schedule> scheduleList = new ArrayList<>();
                 try {
                     int scheduleFound = 0;
-                    scheduleRepo.findByProfessorId(professorId).forEach(scheduleList::add);
+                    scheduleList = scheduleRepo.findByProfessorId(professorId);
                     for (Schedule schedule : scheduleList) { //verify professor schedule
                         if (schedule.getWeekday() == weekday) { //professor has a schedule for selected day
                             int timeStartDifference = timeStart.compareTo(schedule.getTimeStart());
@@ -446,7 +446,7 @@ public class WebController {
                     /*
                     scheduleList = new ArrayList<>();
                     try {
-                        scheduleRepo.findByStudentGrup(studentGrup).forEach(scheduleList::add);
+                        scheduleList = scheduleRepo.findByStudentGrup(studentGrup);
                         for(Schedule schedule : scheduleList) { //verify schedule for selected group of specialization matching with selected subject
                             if(schedule.getWeekday() == weekday) { //professor has a schedule for selected day
                                 Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
@@ -529,7 +529,7 @@ public class WebController {
 
         List<Subject> subjectList = new ArrayList<>();
         try {
-            subjectRepo.findAll().forEach(subjectList::add);
+            subjectList = subjectRepo.findAll();
             model.addAttribute("subjectList", subjectList);
             return "addAttendance";
         } catch (Exception ex) {
@@ -573,69 +573,103 @@ public class WebController {
         try {
             Optional<User> user = userRepo.findByCnp(cnp);
             if(user.isPresent()) {
+                if(user.get().getIsAdmin() == 1) {
+                    model.addAttribute("addAttendanceFormError", "The student does not exist.");
+                    return "addAttendance";
+                }
                 try {
                     Optional<Student> student = studentRepo.findByUserId(user.get().getId());
                     if(student.isPresent()) {
                         try {
-                            int scheduleFound = 0;
-                            List<Schedule> scheduleList = new ArrayList<>();
-                            scheduleRepo.findBySubjectId(subject).forEach(scheduleList::add);
-                            for(Schedule schedule : scheduleList) {
-                                if(schedule.getWeekday() == weekday) {
-                                    if(schedule.getStudentGrup() == 0 || schedule.getStudentGrup() == student.get().getGrup()) {
-                                        int timeStartDifference = time.compareTo(schedule.getTimeStart()); //timeStartDifference > 0 - time comes after timeStart; < 0 - time comes before timeStart
-                                        int timeStopDifference = time.compareTo(schedule.getTimeStop());
+                            Optional<Subject> subjectElement = subjectRepo.findById(subject);
+                            if(subjectElement.isPresent()) {
+                                if(subjectElement.get().getSpec() == student.get().getSpec() && subjectElement.get().getGrade() == student.get().getGrade()) {
 
-                                        if(timeStartDifference > 0 && timeStopDifference < 0) {
-                                            scheduleFound = schedule.getId();
-                                            break;
+                                    try {
+                                        int scheduleFound = 0;
+                                        int lastScheduleId = 0;
+                                        List<Schedule> scheduleList = new ArrayList<>();
+                                        scheduleList = scheduleRepo.findBySubjectId(subject);
+                                        for(Schedule schedule : scheduleList) {
+                                            if(schedule.getWeekday() == weekday) {
+                                                if(schedule.getStudentGrup() == 0 || schedule.getStudentGrup() == student.get().getGrup()) {
+                                                    int timeStartDifference = time.compareTo(schedule.getTimeStart()); //timeStartDifference > 0 - time comes after timeStart; < 0 - time comes before timeStart
+                                                    int timeStopDifference = time.compareTo(schedule.getTimeStop());
+
+                                                    if(timeStartDifference >= 0 && timeStopDifference <= 0) {
+                                                        //search if attendance exists for this schedule and date
+                                                        lastScheduleId = schedule.getId();
+                                                        List<Attendance> attendanceList = new ArrayList<>();
+                                                        attendanceList = attendanceRepo.findByScanDateAndScheduleId(date, schedule.getId());
+                                                        for(Attendance attendance : attendanceList) {
+                                                            if(attendance.getStudentId() == user.get().getId()) {
+                                                                scheduleFound = 1;
+                                                                break;
+                                                            }
+                                                        }
+                                                        break; //the right schedule is found, it's useless to search for schedules again
+                                                    }
+                                                }
+                                            }
                                         }
+
+                                        if(scheduleFound == 0 && lastScheduleId != 0) {
+                                            Attendance attendance = new Attendance();
+                                            attendance.setStudentId(student.get().getUserId());
+                                            attendance.setSubjectId(subject);
+                                            attendance.setScheduleId(lastScheduleId);
+                                            attendance.setScanDate(date);
+                                            attendance.setScanTime(time);
+                                            try {
+                                                attendanceRepo.save(attendance);
+                                                return "redirect:/index"; //redirect to list of users when said page is implemented
+                                            }
+                                            catch (Exception ex) {
+                                                model.addAttribute("addAttendanceFormError", "An error has occurred. Please try again.");
+                                                return "addAttendance";
+                                            }
+                                        }
+
+                                        model.addAttribute("addAttendanceFormError", "Date and time provided are inappropriate for this subject.");
+                                        return "addAttendance";
+                                    }
+                                    catch(Exception ex) {
+                                        model.addAttribute("addAttendanceFormError", "An error has occurred. Please try again.");
+                                        return "addAttendance";
                                     }
                                 }
-                            }
-
-                            if(scheduleFound != 0) {
-                                Attendance attendance = new Attendance();
-                                attendance.setStudentId(student.get().getUserId());
-                                attendance.setSubjectId(subject);
-                                attendance.setScheduleId(scheduleFound);
-                                attendance.setScanDate(date);
-                                attendance.setScanTime(time);
-                                try {
-                                    attendanceRepo.save(attendance);
-                                    return "redirect:/index"; //redirect to list of users when said page is implemented
-                                }
-                                catch (Exception ex) {
-                                    model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
-                                    return "addSchedule";
+                                else {
+                                    model.addAttribute("addAttendanceFormError", "The student cannot attend this subject.");
+                                    return "addAttendance";
                                 }
                             }
-
-                            model.addAttribute("addScheduleFormError", "Date and time provided are inappropriate for this subject.");
-                            return "addAttendance";
+                            else {
+                                model.addAttribute("addAttendanceFormError", "An error has occurred. Please try again.");
+                                return "addAttendance";
+                            }
                         }
                         catch(Exception ex) {
-                            model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
+                            model.addAttribute("addAttendanceFormError", "An error has occurred. Please try again.");
                             return "addAttendance";
                         }
                     }
                     else {
-                        model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
+                        model.addAttribute("addAttendanceFormError", "An error has occurred. Please try again.");
                         return "addAttendance";
                     }
                 }
                 catch(Exception ex) {
-                    model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
+                    model.addAttribute("addAttendanceFormError", "An error has occurred. Please try again.");
                     return "addAttendance";
                 }
             }
             else {
-                model.addAttribute("addScheduleFormError", "User does not exist.");
+                model.addAttribute("addAttendanceFormError", "The student does not exist.");
                 return "addAttendance";
             }
         }
         catch(Exception ex) {
-            model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
+            model.addAttribute("addAttendanceFormError", "An error has occurred. Please try again.");
             return "addAttendance";
         }
     }

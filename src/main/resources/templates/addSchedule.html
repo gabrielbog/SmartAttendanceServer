@@ -23,10 +23,10 @@
         </select>
         <br>
         <label for="timeStart">Start Time</label>
-        <input type="time" id="timeStart" name="timeStart" min="08:00" value="20:00">
+        <input type="time" id="timeStart" name="timeStart" min="08:00" max="20:00" value="08:00">
         <br>
         <label for="timeStop">Stop Time</label>
-        <input type="time" id="timeStop" name="timeStop" min="08:00" value="20:00">
+        <input type="time" id="timeStop" name="timeStop" min="08:00" max="20:00" value="08:00">
         <br>
         <label for="weekday">Weekday</label>
         <select id="weekday" name="weekday">
@@ -41,7 +41,7 @@
         </select>
         <br>
         <label for="grup">Group</label>
-        <input type="number" id="grup" name="grup" min="1" value="1">
+        <input type="number" id="grup" name="grup" min="0" value="1">
         <br>
         <label for="room">Room</label>
         <input type="text" id="room" name="room">
