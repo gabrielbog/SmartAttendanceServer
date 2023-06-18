@@ -867,10 +867,10 @@ public class ApiController {
                             scheduleList = scheduleRepo.findBySubjectId(subjectId);
 
                             int completeCalendarCount = 0;
-                            while (nextDate.isBefore(endLocalDate)) { //iterates through all days
+                            while (nextDate.isBefore(endLocalDate)) { //iterates through all days until semester end
                                 for(Schedule schedule : scheduleList) {
                                     if ((schedule.getStudentGrup() == student.get().getGrup() || schedule.getStudentGrup() == 0) && nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
-                                        if(nextDate.compareTo(currentDate) < 0) { //student checks attendance before semester ends
+                                        if(nextDate.compareTo(currentDate) <= 0) { //student checks attendance until current day
                                             int attendanceFound = 0;
                                             for(Attendance attendance : attendanceList) {
                                                 if(attendance.getScanDate().equals(Date.valueOf(nextDate)) && attendance.getScheduleId() == schedule.getId()) {
