@@ -216,7 +216,7 @@ public class WebController {
         try {
             Optional<Specialization> specElement = specialzationRepo.findById(spec);
             if (specElement.isPresent()) {
-                if (grade < specElement.get().getMaxYears()) {
+                if (grade <= specElement.get().getMaxYears()) {
 
                     Optional<User> existingUser = userRepo.findByCnp(cnp);
                     if (existingUser.isPresent()) {
@@ -323,7 +323,7 @@ public class WebController {
             if (specElement.isPresent()) {
                 System.out.println(grade);
                 System.out.println(specElement.get().getMaxYears());
-                if (grade < specElement.get().getMaxYears()) {
+                if (grade <= specElement.get().getMaxYears()) {
 
                     Subject subject = new Subject();
                     subject.setName(name);
