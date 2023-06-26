@@ -133,10 +133,11 @@ public class ApiController {
                                         scancode = existingScancode.get();
                                         long timeDifference = currentTime.getTime() - scancode.getTimeGenerated().getTime();
                                         //System.out.println(timeDifference);
-                                        if(timeDifference >= Constants.CODE_DURATION) { //is the code older than it's supossed to?
+                                        if(timeDifference >= Constants.CODE_DURATION) { //is the code older than it's supposed to?
 
+                                            String originalString = id + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString();
                                             String qrString = Hashing.sha256()
-                                                    .hashString(String.valueOf(id) + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString(), StandardCharsets.UTF_8)
+                                                    .hashString(originalString, StandardCharsets.UTF_8)
                                                     .toString();
                                             scancode.setCode(qrString);
                                             scancode.setTimeGenerated(currentTime);
@@ -182,8 +183,9 @@ public class ApiController {
                                         }
                                     }
                                     else { //create a new code
+                                        String originalString = id + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString();
                                         String qrString = Hashing.sha256()
-                                                .hashString(String.valueOf(id) + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString(), StandardCharsets.UTF_8)
+                                                .hashString(originalString, StandardCharsets.UTF_8)
                                                 .toString();
 
                                         scancode = new Scancode();
@@ -269,8 +271,9 @@ public class ApiController {
                                         int timeStopDifference = currentTime.compareTo(scancode.get().getTimeStop());
 
                                         if(timeStartDifference >= 0 && timeStopDifference <= 0) {
+                                            String originalString = id + user.get().getFirstName() + scancode.get().getScheduleId() + currentDate.toString() + " " + currentTime.toString();
                                             String qrString = Hashing.sha256()
-                                                    .hashString(String.valueOf(id) + user.get().getFirstName() + scancode.get().getScheduleId() + currentDate.toString() + " " + currentTime.toString(), StandardCharsets.UTF_8)
+                                                    .hashString(originalString, StandardCharsets.UTF_8)
                                                     .toString();
                                             scancode.get().setCode(qrString);
                                             scancode.get().setTimeGenerated(currentTime);
