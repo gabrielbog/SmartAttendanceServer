@@ -425,19 +425,43 @@ public class WebController {
                     scheduleList = scheduleRepo.findByProfessorId(professorId);
                     for (Schedule schedule : scheduleList) { //verify professor schedule
                         if (schedule.getWeekday() == weekday) { //professor has a schedule for selected day
-                            int timeStartDifference = timeStart.compareTo(schedule.getTimeStart());
+                            int differentSemester = 0;
 
-                            if (timeStartDifference < 0) { //form timeStart exists before schedule timeStart
-                                int otherTimeDifference = timeStop.compareTo(schedule.getTimeStart());
-                                if (otherTimeDifference >= 0) { //form timeStop extends over found schedule
-                                    scheduleFound = 1;
-                                    break;
+                            if(schedule.getSubjectId() != formSubject.get().getId()) { //verify schedules based on semester
+                                try {
+                                    Optional<Subject> scheduleSubject = subjectRepo.findById(schedule.getSubjectId());
+                                    if (scheduleSubject.isPresent()) {
+                                        if(scheduleSubject.get().getSemester() != formSubject.get().getSemester()) {
+                                            differentSemester = 1;
+                                        }
+                                    }
+                                    else {
+                                        model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
+                                        return "addSchedule";
+                                    }
                                 }
-                            } else {
-                                int otherTimeDifference = timeStart.compareTo(schedule.getTimeStop());
-                                if (otherTimeDifference <= 0) { //form schedule starts after existing schedule
-                                    scheduleFound = 1;
-                                    break;
+                                catch(Exception ex) {
+                                    model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
+                                    return "addSchedule";
+                                }
+                            }
+
+                            if(differentSemester == 0) {
+                                int timeStartDifference = timeStart.compareTo(schedule.getTimeStart());
+
+                                if (timeStartDifference < 0) { //form timeStart exists before schedule timeStart
+                                    int otherTimeDifference = timeStop.compareTo(schedule.getTimeStart());
+                                    if (otherTimeDifference >= 0) { //form timeStop extends over found schedule
+                                        scheduleFound = 1;
+                                        break;
+                                    }
+                                }
+                                else {
+                                    int otherTimeDifference = timeStart.compareTo(schedule.getTimeStop());
+                                    if (otherTimeDifference <= 0) { //form schedule starts after existing schedule
+                                        scheduleFound = 1;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -504,15 +528,18 @@ public class WebController {
 
                     model.addAttribute("addScheduleFormError", "Selected professor already has a schedule appointed in this time frame.");
                     return "addSchedule";
-                } catch (Exception ex) {
+                }
+                catch (Exception ex) {
                     model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
                     return "addSchedule";
                 }
-            } else {
+            }
+            else {
                 model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
                 return "addSchedule";
             }
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             model.addAttribute("addScheduleFormError", "An error has occurred. Please try again.");
             return "addSchedule";
         }

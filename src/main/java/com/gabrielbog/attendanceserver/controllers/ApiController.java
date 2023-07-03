@@ -105,6 +105,22 @@ public class ApiController {
         LocalDate currentDate = LocalDate.now();
         Time currentTime = Time.valueOf(LocalTime.now());
 
+        int currentSemester = 0;
+        AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance();
+        LocalDate semesterIendDate = attendanceCalendar.getSemesterIstop().toLocalDate();
+        LocalDate semesterIIstartDate = attendanceCalendar.getSemesterIIstart().toLocalDate();
+        LocalDate yearStopDate = attendanceCalendar.getYearStop().toLocalDate();
+
+        if(currentDate.compareTo(semesterIendDate) <= 0) {
+            currentSemester = 1;
+        }
+        else if(currentDate.compareTo(semesterIIstartDate) >= 0 && currentDate.compareTo(yearStopDate) <= 0) {
+            currentSemester = 2;
+        }
+        else {
+            return new QrCodeResponse(3, 0, "No active semester currently.", "", 0); //error during request
+        }
+
         try {
             Optional<User> user = userRepo.findById(id);
             if (user.isPresent()) {
@@ -126,99 +142,68 @@ public class ApiController {
 
                                 try {
 
-                                    Optional<Scancode> existingScancode = scancodeRepo.findByCreationDateAndScheduleId(Date.valueOf(currentDate), schedule.getId());
-                                    Scancode scancode = null;
-                                    if(existingScancode.isPresent()) { //generated code already exists
+                                    Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
+                                    if(subject.isPresent()) {
+                                        if(subject.get().getSemester() == currentSemester) {
+                                            Optional<Scancode> existingScancode = scancodeRepo.findByCreationDateAndScheduleId(Date.valueOf(currentDate), schedule.getId());
+                                            Scancode scancode = null;
+                                            if(existingScancode.isPresent()) { //generated code already exists
 
-                                        scancode = existingScancode.get();
-                                        long timeDifference = currentTime.getTime() - scancode.getTimeGenerated().getTime();
-                                        //System.out.println(timeDifference);
-                                        if(timeDifference >= Constants.CODE_DURATION) { //is the code older than it's supposed to?
+                                                scancode = existingScancode.get();
+                                                long timeDifference = currentTime.getTime() - scancode.getTimeGenerated().getTime();
+                                                //System.out.println(timeDifference);
+                                                if(timeDifference >= Constants.CODE_DURATION) { //is the code older than it's supposed to?
 
-                                            String originalString = id + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString();
-                                            String qrString = Hashing.sha256()
-                                                    .hashString(originalString, StandardCharsets.UTF_8)
-                                                    .toString();
-                                            scancode.setCode(qrString);
-                                            scancode.setTimeGenerated(currentTime);
+                                                    String originalString = id + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString();
+                                                    String qrString = Hashing.sha256()
+                                                            .hashString(originalString, StandardCharsets.UTF_8)
+                                                            .toString();
+                                                    scancode.setCode(qrString);
+                                                    scancode.setTimeGenerated(currentTime);
 
-                                            try {
-                                                scancodeRepo.save(scancode);
-                                            }
-                                            catch (Exception ex) {
-                                                return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
-                                            }
+                                                    try {
+                                                        scancodeRepo.save(scancode);
+                                                    }
+                                                    catch (Exception ex) {
+                                                        return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
+                                                    }
 
-                                            try {
-                                                Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
-                                                if(subject.isPresent()) {
-                                                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
                                                     return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, subject.get().getName(), schedule.getStudentGrup());
                                                 }
-                                                else { //impossible condition
-                                                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " refreshed new code: " + qrString); //debug
-                                                    return new QrCodeResponse(2, 0, qrString, "", 0);
-                                                }
-                                            }
-                                            catch (Exception ex) {
-                                                return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
-                                            }
-                                        }
-                                        else { //return existing code but with different duration for the application refresh time
-
-                                            try {
-                                                Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
-                                                if(subject.isPresent()) {
-                                                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " requested code: " + existingScancode.get().getCode()); //debug
+                                                else { //return existing code but with different duration for the application refresh time
                                                     return new QrCodeResponse(2, Constants.CODE_DURATION - timeDifference, existingScancode.get().getCode(), subject.get().getName(), schedule.getStudentGrup());
                                                 }
-                                                else { //impossible condition
-                                                    //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " requested code: " + existingScancode.get().getCode()); //debug
-                                                    return new QrCodeResponse(2, 0, existingScancode.get().getCode(), "", 0);
+                                            }
+                                            else { //create a new code
+                                                String originalString = id + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString();
+                                                String qrString = Hashing.sha256()
+                                                        .hashString(originalString, StandardCharsets.UTF_8)
+                                                        .toString();
+
+                                                scancode = new Scancode();
+                                                scancode.setSubjectId(schedule.getSubjectId());
+                                                scancode.setScheduleId(schedule.getId());
+                                                scancode.setCode(qrString);
+                                                scancode.setCreationDate(Date.valueOf(currentDate));
+                                                scancode.setTimeGenerated(currentTime);
+                                                scancode.setTimeStart(schedule.getTimeStart());
+                                                scancode.setTimeStop(schedule.getTimeStop());
+
+                                                try {
+                                                    scancodeRepo.save(scancode);
                                                 }
-                                            }
-                                            catch (Exception ex) {
-                                                return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
-                                            }
-                                        }
-                                    }
-                                    else { //create a new code
-                                        String originalString = id + user.get().getFirstName() + schedule.getId() + currentDate.toString() + " " + currentTime.toString();
-                                        String qrString = Hashing.sha256()
-                                                .hashString(originalString, StandardCharsets.UTF_8)
-                                                .toString();
+                                                catch (Exception ex) {
+                                                    return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
+                                                }
 
-                                        scancode = new Scancode();
-                                        scancode.setSubjectId(schedule.getSubjectId());
-                                        scancode.setScheduleId(schedule.getId());
-                                        scancode.setCode(qrString);
-                                        scancode.setCreationDate(Date.valueOf(currentDate));
-                                        scancode.setTimeGenerated(currentTime);
-                                        scancode.setTimeStart(schedule.getTimeStart());
-                                        scancode.setTimeStop(schedule.getTimeStop());
-
-                                        try {
-                                            scancodeRepo.save(scancode);
-                                        }
-                                        catch (Exception ex) {
-                                            return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
-                                        }
-
-                                        try {
-                                            Optional<Subject> subject = subjectRepo.findById(schedule.getSubjectId());
-                                            if(subject.isPresent()) {
-                                                //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " generated code: " + qrString); //debug
                                                 return new QrCodeResponse(2, Constants.CODE_DURATION, qrString, subject.get().getName(), schedule.getStudentGrup());
                                             }
-                                            else { //impossible condition
-                                                //System.out.println("[" + currentDate.toString() + " " + currentTime.toString() + "] Professor " + user.get().getFirstName() + " generated code: " + qrString); //debug
-                                                return new QrCodeResponse(2, 0, qrString, "", 0);
-                                            }
-                                        }
-                                        catch (Exception ex) {
-                                            return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
                                         }
                                     }
+                                    else { //impossible condition
+                                        return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
+                                    }
+
                                 }
                                 catch(Exception ex) {
                                     return new QrCodeResponse(-1, 0, "Error during request.", "", 0); //error during request
