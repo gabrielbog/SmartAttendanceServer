@@ -105,6 +105,8 @@ public class ApiController {
         LocalDate currentDate = LocalDate.now();
         Time currentTime = Time.valueOf(LocalTime.now());
 
+        System.out.println(currentDate.getDayOfWeek().getValue());
+
         int currentSemester = 0;
         AttendanceCalendar attendanceCalendar = AttendanceCalendar.getInstance();
         LocalDate semesterIendDate = attendanceCalendar.getSemesterIstop().toLocalDate();
@@ -548,7 +550,7 @@ public class ApiController {
                     List<Schedule> scheduleList = new ArrayList<>();
                     scheduleList = scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId);
 
-                    while (nextDate.isBefore(endLocalDate)) { //iterates through all days
+                    while (nextDate.compareTo(endLocalDate) <= 0) { //iterates through all days
                         for(Schedule schedule : scheduleList) {
                             if (nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
                                 ScheduleCalendar scheduleCalendarElement = new ScheduleCalendar(schedule.getId(), Date.valueOf(nextDate), schedule.getTimeStart(), schedule.getTimeStop(), schedule.getStudentGrup());
@@ -753,7 +755,7 @@ public class ApiController {
                         List<Schedule> scheduleList = new ArrayList<>();
                         scheduleList = scheduleRepo.findByProfessorIdAndSubjectId(professorId, subjectId);
 
-                        while (nextDate.isBefore(endLocalDate)) { //iterates through all days
+                        while (nextDate.compareTo(endLocalDate) <= 0) { //iterates through all days
                             for(Schedule schedule : scheduleList) {
                                 if (nextDate.getDayOfWeek().getValue() == schedule.getWeekday() && schedule.getStudentGrup() == grup) { //checks if the days match
 
@@ -855,7 +857,7 @@ public class ApiController {
                             scheduleList = scheduleRepo.findBySubjectId(subjectId);
 
                             int completeCalendarCount = 0;
-                            while (nextDate.isBefore(endLocalDate)) { //iterates through all days until semester end
+                            while (nextDate.compareTo(endLocalDate) <= 0) { //iterates through all days until semester end
                                 for(Schedule schedule : scheduleList) {
                                     if ((schedule.getStudentGrup() == student.get().getGrup() || schedule.getStudentGrup() == 0) && nextDate.getDayOfWeek().getValue() == schedule.getWeekday()) { //checks if the days match
                                         if(nextDate.compareTo(currentDate) <= 0) { //student checks attendance until current day

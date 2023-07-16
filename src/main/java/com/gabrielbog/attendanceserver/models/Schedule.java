@@ -29,7 +29,7 @@ public class Schedule {
     private Time timeStop;
 
     @Column
-    private int weekday; //0 - Sunday, 6 - Saturday
+    private int weekday; //1 - Monday, 7 - Sunday
 
     @Column
     private int studentGrup; //student group; 0 - all groups
